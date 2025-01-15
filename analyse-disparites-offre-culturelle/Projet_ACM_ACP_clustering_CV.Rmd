@@ -1,0 +1,1259 @@
+---
+output:
+  pdf_document:
+    toc: false
+    number_sections: true
+  word_document:
+    toc: false
+fontsize: 9pt
+geometry: a4paper, top=1.2cm, bottom=1.8cm, left=1.5cm, right=1.5cm
+always_allow_html: true
+header-includes:
+- \usepackage{graphicx} % Pour inclure des images
+- \usepackage{tikz} % Pour superposer du texte
+- \usepackage{geometry} % Pour ajuster les marges
+- \renewcommand{\contentsname}{Sommaire}
+---
+
+\begin{titlepage}
+    \begin{tikzpicture}[remember picture, overlay]
+        % Insérer l'image occupant toute la page
+        \node[anchor=north west, inner sep=0] at (current page.north west)
+        {\includegraphics[width=\paperwidth, height=\paperheight]{pagegardeblanche.pdf}};
+        
+        
+    \end{tikzpicture}
+\end{titlepage}
+
+\renewcommand{\contentsname}{Sommaire}
+\tableofcontents
+\newpage 
+
+
+```{r setup, include=FALSE}
+#| echo: false
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, comment = FALSE)
+knitr::opts_chunk$set(fig.align = 'center')
+
+library(FactoMineR)
+library(factoextra)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(dplyr)
+library(leaflet)
+library(leaflet.extras)  
+library(sf)
+library(stringr)
+library(shiny)
+library(ggplot2)
+library(highcharter)
+library(RColorBrewer)
+library(rcartocolor)
+library(fontawesome)
+library(DT)
+library(plotly)
+library(readr)
+library(tidyr)
+library(forcats)
+library(highcharter)
+library(readr)
+library(corrplot)
+library(gridExtra)
+library(ggplot2)
+theme_set(theme_minimal())
+choix_pal <- "futurama"
+col_ind <- "#008EA0FF" 
+col_var <- "#C71000FF"
+col_bar <- "#8A419888"
+logodark <- "#5A9599EE"
+corail <- "#FF6348FF"
+orange <- "#FF6F00FF"
+accent <- "#00817c"
+alert <- "#e64173"
+violet <- "#8A4198FF"
+pal_js <- c(col_ind, "deeppink1", "seagreen2", orange, violet,  col_var)
+```
+
+```{r}
+data <- read.csv("depenses-culturelles-des-departements-total.csv", sep = ";", header = TRUE, dec = " ",fileEncoding = "latin1")
+```
+
+```{r}
+data <- data[data$Année != 2020, ]
+data <-data[-c(2)]
+```
+
+```{r}
+data <-data[-c(3:4)]
+```
+
+```{r}
+data <-data[-c(4:5)]
+```
+
+```{r}
+data <-data[-c(5:7)]
+data <- data |> 
+ filter(!(Libellé_géographique %in% c("Mayotte")))
+data <- data |> 
+  arrange(Libellé_géographique)
+```
+
+```{r}
+dt <- read.csv("base-des-lieux-et-des-equipements-culturels.csv", sep = ";", header = TRUE, dec = " ",fileEncoding = "UTF8")
+
+dt$Type.équipement.ou.lieu[dt$Type.équipement.ou.lieu %in% c("Opéra","Théâtre","Scène")] <- "Spectacles"
+dt$Type.équipement.ou.lieu[dt$Type.équipement.ou.lieu %in% c("Centre culturel","Centre d'art","Centre de création artistique","Centre de création musicale","Conservatoire")] <- "Etablissements culturels"
+```
+
+```{r}
+dt <- dt %>% select(Type.équipement.ou.lieu, Département, Région)
+```
+
+```{r}
+dt2 <- dt |> 
+  left_join(
+    dt |> filter(Type.équipement.ou.lieu == "Cinéma") |> 
+      group_by(Département) |> 
+      summarise(nbr_Ciné = n(), .groups = "drop"),
+    by = "Département"
+  ) |> 
+  left_join(
+    dt |> filter(Type.équipement.ou.lieu == "Bibliothèque") |> 
+      group_by(Département) |> 
+      summarise(nbr_Biblio = n(), .groups = "drop"),
+    by = "Département"
+  ) |> 
+  left_join(
+    dt |> filter(Type.équipement.ou.lieu == "Spectacles") |> 
+      group_by(Département) |> 
+      summarise(nbr_Spectacles = n(), .groups = "drop"),
+    by = "Département"
+  ) |> 
+  left_join(
+    dt |> filter(Type.équipement.ou.lieu == "Etablissements culturels") |> 
+      group_by(Département) |> 
+      summarise(nbr_Etablissements_cult = n(), .groups = "drop"),
+    by = "Département"
+  ) |> 
+  left_join(
+    dt |> filter(Type.équipement.ou.lieu == "Musée") |> 
+      group_by(Département) |> 
+      summarise(nbr_Musées = n(), .groups = "drop"),
+    by = "Département"
+  ) 
+dt2 <- dt2 |> distinct(Département, .keep_all = TRUE)
+
+dt2 <- dt2 |> 
+  mutate(
+    across(starts_with("nbr_"), ~ replace_na(., 0))
+  )
+```
+
+```{r}
+dt2 <- dt2[-c(1)]
+```
+
+```{r}
+dt2 <- dt2|> 
+  arrange(Département)
+```
+
+```{r}
+dt2 <- dt2 |> 
+  mutate(Département = case_when(
+    Département == "Deux-Sevres" ~ "Deux-Sèvres", 
+    Département == "Alpes-maritimes" ~ "Alpes-Maritimes", 
+    Département == "Bouches-Du-Rhone" ~ "Bouches-du-Rhône", 
+    Département == "Correze" ~ "Corrèze",
+    Département == "Corse-Du-Sud" ~ "Corse-du-Sud", 
+    Département == "Hauts-De-Seine" ~ "Hauts-de-Seine",
+    Département == "Haute-Normandie" ~ "Seine-Maritime",
+    Département == "Pyrenees-Orientales" ~ "Pyrénées-Orientales", 
+    Département == "Seine-saint-Denis" ~ "Seine-Saint-Denis", 
+    Département == "Val-De-Marne" ~ "Val-de-Marne",
+    Département == "Val-D'Oise" | Département == "Val-D'oise" ~ "Val-d'Oise",
+    TRUE ~ Département 
+  ))
+
+dt2 <- dt2 |> 
+  group_by(Département, Région) |> 
+  summarise(across(where(is.numeric), sum, na.rm = TRUE)) |> 
+  ungroup()
+```
+
+```{r}
+dt2 <- dt2 |> 
+  filter(!(Département %in% c("Wallis-et-Futuna", "Terres Et Mers Australes Françaises","Saint-Pierre-et-Miquelon","Saint-Martin","Saint-Barthélemy","Polynésie Française","Nouvelle-Calédonie","France","Etranger","Mayotte")))
+```
+
+```{r}
+base <- read.csv("revenus.csv",  stringsAsFactors = FALSE, sep = ";",  
+                    dec = ",",
+                    fileEncoding = "ISO-8859-1", header= TRUE)
+```
+
+```{r}
+base <- base |> 
+  arrange(Département)
+```
+
+```{r}
+dt2 <- cbind(dt2, base["Population"])
+```
+
+```{r}
+dt2 <- dt2 |> 
+  mutate(
+    across(
+      starts_with("nbr_"), 
+      ~ round(. / Population * 100000, 1), 
+      .names = "{.col}_100k_hab" 
+    )
+  ) |> 
+  rename_with(~ gsub("nbr_", "", .), starts_with("nbr_")) 
+```
+
+```{r}
+dt_clean<- dt2[-c(3:8)]
+```
+
+```{r}
+dt_clean <- cbind(dt_clean, base[, 4:6])
+dt_clean <- cbind(dt_clean, data["Dépenses.culturelles.totales.par.habitant...."])
+
+dt_clean <- dt_clean[c(1, (3:ncol(dt_clean)), 2)]
+
+colnames(dt_clean)[colnames(dt_clean) == "Dépenses.culturelles.totales.par.habitant...."] <- "Dépenses_culturelles_par_hab"
+colnames(dt_clean)[colnames(dt_clean) == "Salaire_moyen.euros_net_an."] <- "Salaire_moyen_net_an"
+colnames(dt_clean)[colnames(dt_clean) == "Taux_chômage.pourcentages."] <- "Taux_chômage"
+colnames(dt_clean)[colnames(dt_clean) == "Part_population_urbaine.pourcentages."] <- "Part_pop_urbaine"
+```
+
+```{r}
+dt_clean$Région[dt_clean$Département %in% c("La Réunion", "Guyane", "Martinique", "Guadeloupe")] <- "Outre-Mer"
+```
+
+```{r}
+dt_clean_quali <- dt_clean  
+
+dt_clean_quali$Ciné_100k_hab <- cut(dt_clean$Ciné_100k_hab, 
+                                     breaks = c(0, 5, 10, 15, Inf), 
+                                     labels = c("0-5 C", "5-10 C", "10-15 C", ">15 C"),
+                                     right = TRUE)
+
+dt_clean_quali$Biblio_100k_hab <- cut(dt_clean$Biblio_100k_hab,  breaks = c(0, 15, 30, 50, 80, Inf), 
+                                           labels = c("<15 B", "15-30 B", "30-50 B", "50-80 B", ">80 B"),
+                                           right = TRUE)
+
+dt_clean_quali$Spectacles_100k_hab <- cut(dt_clean$Spectacles_100k_hab, 
+                                      breaks = c(0, 2, 4, Inf), 
+                                  labels = c("0-2 S", "2-4 S", ">4 S"),  right = TRUE)
+
+
+dt_clean_quali$Etablissements_cult_100k_hab <- cut(dt_clean$Etablissements_cult_100k_hab, 
+                                           breaks = c(-1, 1, 2, Inf), 
+                                          labels = c("0-1 EC", "1-2 EC", ">2 EC"),
+                                           right = TRUE)
+
+dt_clean_quali$Musées_100k_hab <- cut(dt_clean$Musées_100k_hab, 
+                                   breaks = c(0, 2, 4, Inf), 
+                   labels = c("0-2 M", "2-4 M", ">4 M"),
+                                   right = TRUE)
+
+dt_clean_quali$Salaire_moyen_net_an<- cut(dt_clean$Salaire_moyen_net_an,
+                         breaks = c(22000, 25000, 30000, 35000, Inf), 
+                    labels = c("Faible (<25k)", "Moyen inf (25-30k)", "Moyen sup (30-35k)", "Elevé (>35k)"), right = FALSE) 
+
+dt_clean_quali$Taux_chômage <- cut(dt_clean$Taux_chômage, 
+    breaks = c(0, 7, 10, 15, Inf), 
+    labels = c("Bas", "Moyen", "Élevé", "Très élevé"),
+    right = FALSE)
+
+dt_clean_quali$Part_pop_urbaine <- cut(
+  dt_clean$Part_pop_urbaine,
+  breaks = c(20, 50, 70, 90, Inf),
+  labels = c("Urba Faible", "Urba Moyenne", "Urba Forte", "Urba Très forte"),
+  right = FALSE
+)
+dt_clean_quali$Dépenses_culturelles_par_hab <- cut(
+  dt_clean$Dépenses_culturelles_par_hab,
+  breaks = c(5, 10, 20, 50, Inf),
+  labels = c("Très faible (5-10€)", "Faible (10-20€)", "Moyenne (20-50€)",  "Elevée (>50€)"),
+  right = FALSE
+)
+```
+
+```{r}
+library(writexl)
+write_xlsx(dt_clean, "dt_clean.xlsx")
+write_xlsx(dt_clean_quali, "dt_clean_quali.xlsx")
+```
+
+\renewcommand{\contentsname}{Table des matières}
+
+# Introduction
+
+L’accès à la culture, en tant qu’élément clé de la vie sociale et économique, représente un enjeu majeur dans la construction des territoires. Dans ce contexte, nous avons choisi, dans le cadre de notre [Master 1 en économie de l'entreprise et des marchés](https://mecen.univ-tours.fr/liste-des-etudiants) à l’Université de Tours, d’analyser l’offre culturelle en France. En participant au challenge d’Open Data University, initié par l’un de nos professeurs dans son cours de Datamining, nous avons créé un [**Dashboard**](https://www.data.gouv.fr/fr/reuses/analyse-de-loffre-culturelle-en-france/) (tableau de bord) pour visualiser la répartition des différentes offres culturelles en France. Cette première étape nous a permis de poser les bases de notre analyse en observant la diversité de l’offre culturelle à l’échelle nationale.
+
+Dans cette deuxième partie de notre étude, nous allons approfondir l’analyse en examinant comment l’offre culturelle varie d’un département à l’autre, en tenant compte de plusieurs facteurs socio-économiques. Cette variabilité certaine peut avoir un impact majeur sur l'accès à la culture pour les populations locales. En effet, l'intensité de l'offre culturelle dans un département peut être étroitement liée à des facteurs comme le niveau de revenus, le taux de chômage, ou encore la répartition de la population urbaine et rurale. Ainsi, il devient pertinent de mieux comprendre comment ces facteurs interagissent pour définir des profils culturels distincts à travers le pays.
+
+L'objectif de cette étude est de mieux comprendre les disparités culturelles à travers le pays et ceci en répondant à la problématique suivante : **Comment caractériser et classifier les départements en fonction de leur offre culturelle et de leur contexte socio-économique ?**
+
+Pour répondre à cette question, nous allons analyser les départements aux travers de plusieurs variables tel que le nombre des différents équipements culturels pour 100 000 habitants (cinémas, musées, bibliothèques..), ainsi que des indicateurs socio-économiques comme le salaire moyen net par an, le taux de chômage, la part de la population urbaine et les dépenses culturelles des départements par habitant. Ces données nous permettront de réaliser une analyse en profondeur à travers des techniques statistiques telles que l'Analyse en Composantes Principales (ACP), l'Analyse des Correspondances Multiples (ACM) et des méthodes de Clustering pour mieux comprendre les profils des départements.
+
+## Presentation des bases de données
+
+### Base de données quantitative
+
+Cette base de données quantitative comprend diverses variables relatives aux départements, qui seront nos individus pour cette étude. Les variables incluent le nombre de cinémas, bibliothèques, musées, spectacles (théâtres, opéras, et scènes) et d’établissements culturels (centres culturels et conservatoires) pour 100 000 habitants par département. Elle contient également des données sur le salaire moyen net annuel, qui reflète le niveau de vie des habitants des départements, le taux de chômage, qui donne une indication sur la situation économique locale, la part de la population urbaine, ainsi que les dépenses culturelles par habitant, mesurant l’engagement des départements dans la culture, et enfin la région de chaque département.
+
+![](images/dt_clean.png)
+
+### Base de données qualitative
+
+Pour effectuer l'ACM, nous avons transformées les variables quantitatives en variables qualitatives en les regroupant par intervalle. Par exemple, les nombres de cinémas, bibliothèques, spectacles..., ont été regroupés en catégories (0-2, 2-4, ...) en fonction de la dispersion des données, et les indicateurs socio-économiques ont été regroupés en catégories du type "Moyen supérieur", "Bas", "Élevé",...en se basant sur les références nationales.
+
+![](images/dt_clean_quali.png)
+
+
+Pour les analyses qui vont suivre, nous avons choisi de traiter les variables liées à l'offre culturelle comme variables principales, tandis que les variables socio-économiques ainsi que la région ont été intégrées en tant que variables supplémentaires.
+
+# Partie 1 : ACP
+
+```{r}
+row.names(dt_clean) <- dt_clean$Département
+```
+
+```{r}
+dt_clean <- dt_clean[,-c(1)]
+```
+
+```{r}
+quanti <- c(1:5)      
+quanti_sup <- c(6:9)          
+quali_sup <- 10 
+```
+
+## Matrice de corrélation
+
+```{r,fig.width=5, fig.height=4,fig.align = 'left'}
+
+cor_matrix <- cor(dt_clean[, quanti], use = "complete.obs")
+
+if (!require(corrplot)) {
+  install.packages("corrplot")
+  library(corrplot)
+}
+
+corrplot(
+  cor_matrix, 
+  method = "number",       
+  type = "upper",          
+  number.cex = 0.7,        
+  number.digits = 2,       
+  tl.cex = 0.8,           
+  cl.cex = 0.8            
+)
+```
+
+On remarque que les différentes offres culturelles sont toutes corrélé positivement entre elles. On observe une forte corrélation positive (0.81) entre  Etablissements_cult_100k_hab et Musées_100k_hab, indiquant que les départements avec plus d'établissements culturels ont également plus de musées, il en est de même pour les cinémas et les musées qui ont une corrélation de 0.7. 
+
+On voit que les spectacles présentent des corrélations plus faibles avec les autres offres culturelles, notamment avec les bibliothèques et les musées (0.37), suggèrant que l'offre de spectacles est moins liée à la présence de ses équipements culturelles.
+
+```{r}
+resACP <- PCA(
+  dt_clean, 
+  scale.unit = TRUE, 
+  quanti.sup = quanti_sup,  
+  quali.sup = quali_sup,    
+  graph = FALSE
+)
+```
+
+## Etude de l'inertie
+
+```{r,fig.width=3.5, fig.height=3}
+resACP$eig |> t() |> round(3) |> kable()
+```
+
+```{r, fig.width=4, fig.height=4,fig.align = 'left'}
+library(factoextra)
+
+fviz_eig(resACP, 
+         barfill = "lightblue", 
+         linecolor = "red", 
+         addlabels = TRUE) + 
+  labs(title = "Inerties relatives de chaque axe", 
+       x = "Composantes principales", 
+       y = "Pourcentage de variance") + 
+  theme(
+    plot.title = element_text(size = 10), 
+    axis.title = element_text(size = 9),
+    axis.text = element_text(size = 8),  
+    geom_text = element_text(size = 3)  
+  )
+```
+On conserve les deux premiers axes car ils représentent `r resACP$eig[2,3] |> round(2)` % de la variance totale des données, ce qui signifie qu'ils capturent une grande majorité de l'information présente dans les données. 
+
+
+## Etude des variables
+
+```{r,fig.width=4, fig.height=3.5}
+library(gridExtra)
+fviz_pca_var(resACP, col.var = "contrib", axes = c(1, 2), 
+                   gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), 
+                   labelsize = 3, 
+                   repel = TRUE) +
+      theme(text = element_text(size = 10))+
+  ggtitle("")  
+```
+
+L'axe $F1$ explique 65.6 % de la variance, tandis que l'axe $F2$ en explique 14.1 %.
+Les variables qui contribuent le plus à la formation des axes $F1$, $F2$ sont Spectacles_100k_hab et Musées_100k_hab.
+
+On observe que la variable supplémentaire Salaire_moyen_net_an est associée à l'axe $F2$, comme en témoigne la longueur de sa flèche. Cela suggère que $F2$ est liée à des caractéristiques des départements où le salaire moyen net annuel est élevé, bien que cela ne signifie pas que cet axe soit uniquement défini par cette variable.
+
+## Contributions des variables
+
+```{r,fig.width=4, fig.height=4}
+p1 <- fviz_pca_contrib(resACP, choice = "var", axes = 1, fill = "lightblue") + 
+      ggtitle("Axe F1") +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(hjust = 0.5),  
+        axis.text.x = element_text(size = 8, angle = 45, hjust = 1),  
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_blank() 
+      )
+
+p2 <- fviz_pca_contrib(resACP, choice = "var", axes = 2, fill = "lightblue") + 
+      ggtitle("Axe F2") +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(size = 8, angle = 45, hjust = 1),
+        axis.text.y = element_text(size = 10),
+        axis.title.x = element_blank() 
+      )
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+On remarque que les variables Musées_100k_hab, Etablissements_cult_100k_hab et Ciné_100k_hab sont les plus contributives à l'axe $F_1$, indiquant qu'elles jouent un rôle important dans la construction de cet axe.
+
+Pour l'axe $F_2$, Spectacles_100k_hab a la contribution la plus importante, ce qui suggère que cette variable est déterminante dans la formation de cet axe, avec un impact majeur sur la variance expliquée par $F_2$.
+
+## Etude des individus
+
+```{r,fig.width=4.5, fig.height=3.5}
+library(ggrepel)
+threshold <- 10  
+
+selected_points_1 <- which(resACP$ind$contrib[, 1] > threshold)  
+selected_points_2 <- which(resACP$ind$contrib[, 2] > threshold)  
+
+selected_points <- unique(c(selected_points_1, selected_points_2))
+
+selected_coords <- as.data.frame(resACP$ind$coord[selected_points, ])  
+selected_coords$label <- rownames(selected_coords) 
+selected_coords$contrib1 <- resACP$ind$contrib[selected_points, 1]  
+selected_coords$contrib2 <- resACP$ind$contrib[selected_points, 2]  
+
+p1 <- ggplot(as.data.frame(resACP$ind$coord), aes(x = Dim.1, y = Dim.2)) +
+  geom_point(aes(color = resACP$ind$contrib[, 1]), size = 2) +  
+  scale_color_gradientn(colors = c("#00AFBB", "#E7B800", "#FC4E07")) +  
+  theme_minimal() +  
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10)
+  ) +
+  geom_point(data = selected_coords, aes(x = Dim.1, y = Dim.2, color = contrib1), size = 3) + 
+  scale_color_gradientn(colors = c("#00AFBB", "#E7B800", "#FC4E07")) +  
+  geom_text_repel(data = selected_coords, aes(x = Dim.1, y = Dim.2, label = label), size = 4, max.overlaps = 10, 
+                  box.padding = 0.5, point.padding = 0.3) +  
+  labs(x = "Dim 1", y = "Dim 2", color = "Contribution")
+
+grid.arrange(p1, ncol = 1)
+```
+
+
+On voit que Haute-Savoie, Côte-d'Or et Alpes-Maritimes contibuent fortement à l'axe $F_1$, caractérisée par les variables Musées_100k_hab, Etablissements_cult_100k_hab et Ciné_100k_hab. 
+
+Paris et Haute-Savoie se distinguent sur l'axe $F_2$, principalement défini par Spectacles_100k_hab, ce qui indique une forte offre de spectacles dans ces départements.
+
+
+## Contributions des individus
+
+```{r,fig.width=8, fig.height=1}
+library(ggpubr)
+
+logodark <- "#5A9599EE"
+
+threshold_F1 <- quantile(resACP$ind$contrib[, 1], 0.95) 
+threshold_F2 <- quantile(resACP$ind$contrib[, 2], 0.95) 
+
+indices_F1 <- which(resACP$ind$contrib[, 1] > threshold_F1)
+indices_F2 <- which(resACP$ind$contrib[, 2] > threshold_F2)
+
+filtered_F1 <- resACP$ind$contrib[indices_F1, , drop = FALSE]
+filtered_F2 <- resACP$ind$contrib[indices_F2, , drop = FALSE]
+
+create_plot <- function(filtered_data, axis_index, x_axis_label, y_axis_label) {
+  data <- data.frame(Individu = rownames(filtered_data), Contribution = filtered_data[, axis_index])
+  data <- data[order(data$Contribution), ] 
+  
+  total_contrib <- sum(data$Contribution)
+  data$Percentage <- (data$Contribution / total_contrib) * 100
+  
+  ggplot(data, aes(x = reorder(Individu, Contribution), y = Contribution)) +
+    geom_bar(stat = "identity", fill = logodark, color = logodark, width = 0.8) + 
+    coord_flip() +
+    labs(x = x_axis_label, y = y_axis_label) + 
+    geom_text(aes(label = paste0(round(Percentage, 1), "%")), 
+              hjust = -0.2, color = "black", size = 2) +  
+    theme_minimal() +
+    theme(
+      axis.title.y = element_blank(),
+      axis.text.x = element_blank(), 
+      axis.text.y = element_text(size = 10), 
+      plot.title = element_blank(), 
+      panel.grid.major = element_blank(), 
+      panel.grid.minor = element_blank() 
+    )
+}
+
+plot_F1 <- create_plot(filtered_F1, 1, "Individus", "Contribution à l'axe F1")  
+plot_F2 <- create_plot(filtered_F2, 2, "Individus", "Contribution à l'axe F2")  
+
+plot_F1
+```
+
+```{r,fig.width=6.5, fig.height=1}
+plot_F2
+```
+
+Les départements qui contribuent le plus à l'axe $F_1$, sont les Alpes-Maritimes, la Côte-d’Or, la Haute-Savoie, les Alpes-de-Haute-Provence et le Lot ; tandis que pour l'axe $F_2$, ce sont Paris, les Hauts-de-Seine, la Haute-Savoie, le Vaucluse, le Territoire de Belfort et le Tarn-et-Garonne.
+
+\newpage 
+
+# Partie 2 : ACM
+
+```{r}
+rownames(dt_clean_quali) <- dt_clean_quali$Département
+dt_clean_quali <- dt_clean_quali[, -1]
+```
+
+```{r}
+dt_clean_quali$Région <- factor(dt_clean_quali$Région)
+```
+
+```{r}
+quali <- c(1:5)
+quali_sup<-c(6:10)
+```
+
+```{r}
+res.mca <- MCA(dt_clean_quali, quali.sup = quali_sup, graph = F, ncp = Inf)
+```
+
+## Etude de l'inertie
+
+```{r,fig.width=4, fig.height=3}
+
+eig_table <- res.mca$eig
+colnames(eig_table) <- c("Valeur propre", "Part d'inertie", "Part cumulée")
+
+eig_table_transposed <- t(eig_table)
+
+eig_table_transposed <- as.data.frame(eig_table_transposed)
+
+knitr::kable(eig_table_transposed, digits = 2, align = "c")
+```
+
+```{r,fig.width=5, fig.height=3}
+fviz_screeplot(res.mca, 
+               addlabels = TRUE,        
+               ylim = c(0, 25), 
+               xlim=c(0,11),
+               barfill = "lightcyan2",       
+               barcolor = "black",     
+               linecolor = "blue") +   
+  labs(title = "Inerties relatives de chaque axe", 
+       x = "Axes factoriels", 
+       y = "Parts")
+```
+On décide de conserver les 4 premiers axes car ils expliquent `r round(res.mca$eig[4,3], 2)` % de l’inertie totale, soit une part significative de la variabilité des données. Ce choix permet de capturer plus de la moitié de l'information présente dans les données tout en maintenant une bonne interprétabilité. 
+
+## Nuage des modalités sur les différents plans
+```{r,fig.width=5, fig.height=3}
+fviz_mca_var(res.mca, 
+             choice = "var.cat", 
+             repel = TRUE, 
+             col.var = "deepskyblue3", 
+             axes = c(1, 2), 
+             select.var = list(name = setdiff(rownames(res.mca$var$coord), rownames(res.mca$var$coord)[1]))) +
+  ggtitle("")  
+```
+
+Les Axes 1 et 2 représentent `r round(res.mca$eig[2,3], 2)` % de l'inertie totale, ce qui constitue la majeure partie de l'information présente dans les données.
+
+On peut voir que les modalités qui contribuent le plus à l'Axe $F_1$ sont 10-15 C (Cinémas), \>15 C, \>4 S (Spectacles), \>80 B (Bibliothèques) et \>2 EC (Etablissements Culturelles) . 
+
+Sur l'Axe $F_2$, se sont 10-15 C, \>4 S, 5-10 C et 50-80 B les modalités qui contribuent le plus.
+
+Les autres modalités proches de l'origine ont une contribution moins importante aux axes et ont des profils plus similaires.
+
+Les modalités 2-4 M (Musées) et 30-50 B sont proches sur le graphique, ce qui indique qu'elles sont associées à des départements ayant des caractéristiques similaires contrairement à 30-50 B et 10-15 C qui sont opposés sur le graphique, il en est de même pour les modalités \>4 S et 0-1 EC.
+
+La modalité 10-15 C est isolée, ce qui suggère qu'elle correspond à des départements spécifiques qui se distinguent par leurs profils culturels.
+
+```{r, fig.width=5, fig.height=3}
+fviz_mca_var(res.mca, 
+                   choice = "var.cat", 
+                   repel = TRUE, 
+                   col.var = "deepskyblue3", 
+                   axes = c(3, 4), 
+                   select.var = list(name = setdiff(rownames(res.mca$var$coord), rownames(res.mca$var$coord)[1]))) +
+  ggtitle("")  
+```
+
+Les Axes 3 et 4 représentent 20,4 % de l'inertie totale, offrant ainsi une contribution importante à la compréhension des variations restantes dans les données, bien que leur part soit moins significative que celle des deux premiers axes.
+
+On peut apercevoir que 10-15 C, 2-4 S, et \<15 B sont les modalités qui contribuent le plus à l'Axe $F_3$ ; tandis que sur l'Axe $F_4$ se sont 10-15 C, \>2 EC, \>15 C et 50-80 B.
+
+0-2 M et 5-10 C sont proches sur le graphique, ce qui indique qu'elles sont associées à des départements ayant des caractéristiques plutôt similaires. On remarque que \>80 B et 10-15 C sont opposés sur le graphique ce qui indique que ces 2 modalités sont rarement associés dans un même département.
+
+On voit que sur le plan $F_3$, $F_4$, la modalité 10-15 C est également isolée comme sur le plan $F_1$, $F_2$ ; ce qui indique que cette modalité correspond à des départements particuliers. 
+
+## Nuage des individus sur les différents plan
+
+```{r, fig.width=5, fig.height=3}
+library(factoextra)
+library(ggrepel)
+
+contrib <- res.mca$ind$contrib
+
+threshold <- 3.6
+
+selected_points_1 <- which(contrib[, 1] > threshold)
+selected_points_2 <- which(contrib[, 2] > threshold)
+
+selected_points <- unique(c(selected_points_1, selected_points_2))
+
+selected_coords <- as.data.frame(res.mca$ind$coord[selected_points, ])
+selected_coords$label <- rownames(selected_coords)
+
+fviz_mca_ind(res.mca, 
+             axes = c(1, 2),
+             label = "none") +
+  geom_point(data = selected_coords, 
+             aes(x = `Dim 1`, y = `Dim 2`), 
+             color = "violetred") +  
+  geom_text_repel(data = selected_coords, 
+                  aes(x = `Dim 1`, y = `Dim 2`, label = label), 
+                  color = "violetred", 
+                  size = 4, 
+                  max.overlaps = 10,
+                  segment.size = 0.2, 
+                  box.padding = 0.2,  
+                  point.padding = 0.3) + 
+  geom_point(color = "violetred") +  
+  theme_minimal() +
+  ggtitle("") 
+```
+
+Les Axes 1 et 2 représentent `r round(res.mca$eig[2,3], 2)` % de l'inertie totale, ce qui constitue la majeure partie de l'information présente dans les données.
+
+On peut voir que les individus qui contribuent le plus à l'Axe $F_1$ sont les départements Côte d'Or, Alpes-Maritimes et Haute-Savoie ; et sur l'Axe $F_2$ se sont la Côte d'Or, l'Ariège, le Gers, l'Aveyron, les Vosges, le Tarn-et-Garonne et les Hautes-Pyrénées qui contribuent le plus. Les autres départements proches de l'origine ont une contribution moins importante aux axes et ont des profils plutôt similaires entre eux.
+
+On remarque que le Gers et l'Ariège ont exactement la même position sur le graphique (même point) ce qui signifie que ces deux départements présentent des caractéristiques culturelles très similaires, il en est de même pour les Hautes-Pyrénées et le Tarn-et-Garonne. 
+
+L'Ariège et la Côte d'Or sont éloignés l'un de l'autre sur le graphique ce qui indiquent qu'ils ont des profils culturelles très différents.
+
+```{r, fig.width=5, fig.height=3}
+library(factoextra)
+library(ggrepel)
+
+contrib <- res.mca$ind$contrib
+
+threshold <- 4.5
+
+selected_points_3 <- which(contrib[, 3] > threshold)
+selected_points_4 <- which(contrib[, 4] > threshold)
+
+selected_points <- unique(c(selected_points_3, selected_points_4))
+
+selected_coords <- as.data.frame(res.mca$ind$coord[selected_points, ])
+selected_coords$label <- rownames(selected_coords)
+
+fviz_mca_ind(res.mca, 
+             axes = c(3, 4),
+             label = "none") +
+  geom_point(data = selected_coords, 
+             aes(x = `Dim 3`, y = `Dim 4`), 
+             color = "violetred") +  
+  geom_text_repel(data = selected_coords, 
+                  aes(x = `Dim 3`, y = `Dim 4`, label = label), 
+                  color = "violetred", 
+                  size = 4, 
+                  max.overlaps = 10, 
+                  segment.size = 0.2, 
+                  box.padding = 0.2,  
+                  point.padding = 0.3) + 
+  geom_point(color = "violetred") +  
+  theme_minimal()+
+  ggtitle("") 
+```
+
+Les Axes 3 et 4 représentent 20,4 % de l'inertie totale, offrant ainsi une contribution importante à la compréhension des variations restantes dans les données, bien que leur part soit moins significative que celle des Axes 1 et 2.
+
+On peut apercevoir que Côte-d'Or, les Yvelines, le Val-d'Oise, le Val-de-Marne, l'Essone, la Seine-Saint-Denis et la Lozère sont les départements qui contribuent le plus à l'Axe $F_3$ ; tandis que sur l'Axe $F_4$ se sont la Côte-d'Or, le Territoire de Belfort et le Nièvre.
+
+On remarque que le Val-de-Marne, les Yvelines, le Val-d'Oise, le Val-de-Marne, l'Essone, la Seine-Saint-Denis ont des caractéristiques culturelles similaires ; alors que la Lozère et le Territoire de Belfort ont des profils totalement opposés.
+
+
+## Contribution des modalités
+
+```{r, fig.width=12, fig.height=6.5, out.width='100%'}
+logodark <- "lightblue"
+p1<-fviz_contrib(res.mca, choice="var", axes =1,
+               fill = logodark, color = logodark)
+p2<-fviz_contrib(res.mca, choice="var", axes =2,
+               fill = logodark, color = logodark)
+p3<-fviz_contrib(res.mca, choice="var", axes = 3,
+               fill = logodark, color = logodark)
+p4<-fviz_contrib(res.mca, choice="var", axes = 4,
+               fill = logodark, color = logodark)
+
+ggarrange(
+  p1 + ggtitle("Axe 1"),  
+  p2 + ggtitle("Axe 2"),  
+  p3 + ggtitle("Axe 3"), 
+  p4 + ggtitle("Axe 4"),  
+  ncol = 2, nrow = 2  
+)
+```
+
+Les modalités qui contribuent le plus à l'axe $F_1$ sont \>80 B (bibliothèques), \>4 S (spectacles), \>2 EC (établissements culturelles), \>4 M, \>15 C et 10-15 C. 
+
+Sur l'axe $F_2$, ce sont 5-10 C et 0-2 M qui contribuent le plus.
+
+On observe que 2-4 S, 1-2 EC et \<15 B contribuent plus que les autres modalités à l'axe $F_3$, alors que sur l'axe $F_4$ ce sont 30-50 B, 50-80 B et 10-15 C.
+
+
+## Contribution des individus
+
+```{r, fig.width=12, fig.height=6.5, out.width='100%'}
+library(ggpubr)
+library(ggplot2)
+
+logodark <- "lightpink2"
+
+top_n <- 30
+
+p1 <- fviz_contrib(res.mca, choice = "ind", axes = 1, top = top_n, fill = logodark, color = logodark)
+p2 <- fviz_contrib(res.mca, choice = "ind", axes = 2, top = top_n, fill = logodark, color = logodark)
+p3 <- fviz_contrib(res.mca, choice = "ind", axes = 3, top = top_n, fill = logodark, color = logodark)
+p4 <- fviz_contrib(res.mca, choice = "ind", axes = 4, top = top_n, fill = logodark, color = logodark)
+
+ggarrange(
+  p1 + ggtitle("Axe 1"),  
+  p2 + ggtitle("Axe 2"),  
+  p3 + ggtitle("Axe 3"),  
+  p4 + ggtitle("Axe 4"),  
+  ncol = 2, nrow = 2  
+) 
+```
+
+Les départements qui contribuent le plus à l'axe $F_1$ sont la Côte-d'Or, les Alpes-Maritimes et la Haute-Savoie on en déduit donc que ces départements sont caractérisés par un nombre très élevé d'équipements culturels pour 100 000 habitants (\>80 B, \>4 S, \>2 EC, \>4 M, \>15 C et 10-15 C). 
+
+Concernant l'axe $F_2$, se sont la Côte-d'Or, le Gers, l'Ariège, l'Aveyron, les Vosges, le Tarn-et-Garonne et les Hautes-Pyrénées qui contribuent plus que les autres départements à l'axe $F_2$ on en conclut donc qu'ils sont associés à un nombre faible de cinémas et de musées pour 100 000 habitants (5-10 C et 0-2 M). 
+
+La Côte-d'Or, les Yvelines, le Val-d'Oise, le Val-de-Marne, l'Essone, la Seine-Saint-Denis et la Lozère sont les départements qui contribuent le plus à l'Axe $F_3$ ce qui révèle que ces départements ont tendance à avoir une offre culturelle faible (2-4 S, 1-2 EC et \<15 B). 
+
+Enfin, on observe que sur l'axe $F_4$, la Côte-d'Or et le Territoire de Belfort se distinguent des autres départements par un nombre d'équipements culturelles relativement élevée (30-50 B, 50-80 B et 10-15 C). 
+
+
+## Projection des Variables Supplémentaire sur les Axes Culturels
+
+Dans cette sous-partie, nous allons mettre en relation les résultats trouvés précédemment avec chacune des variables supplémentaires que nous possédons. 
+
+Nous choisissons d’utiliser uniquement les deux premiers axes pour représenter les variables supplémentaires, car ces axes capturent déjà une proportion significative de l'inertie (33,60%), offrant une visualisation claire et pertinente des relations entre ces variables sans introduire de complexité inutile.
+
+### Représentations des départements suivant leur salaire moyen net par an
+
+```{r,fig.width=6.5, fig.height=3}
+library(factoextra)
+library(ggplot2)
+
+eig <- res.mca$eig
+percentage_dim1 <- round(eig[1, 2], 1)  
+percentage_dim2 <- round(eig[2, 2], 1)  
+
+ind_data <- as.data.frame(res.mca$ind$coord)  
+ind_data$Salaire_moyen_net_an <- dt_clean_quali$Salaire_moyen_net_an  
+
+ggplot(ind_data, aes(x = `Dim 1`, y = `Dim 2`, color = Salaire_moyen_net_an)) +
+  geom_point(size = 3) +  
+  labs(
+    x = paste0("Dim 1 (", percentage_dim1, "%)"),
+    y = paste0("Dim 2 (", percentage_dim2, "%)"),
+    title = NULL,
+    color = ""  
+  ) +
+  scale_color_manual(values = RColorBrewer::brewer.pal(n = 4, name = "RdYlBu")) +  
+  theme_minimal() +  
+  theme(legend.position = "bottom") +  
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +  
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black")  
+```
+
+On a vu précédemment que les départements de la Côte-d'Or, des Alpes-Maritimes et de la Haute-Savoie caractérisées par une offre culturelle riche, sont ceux qui contribuent le plus à l'axe $F_1$. 
+On peut voir sur ce graphique que les points les plus éloignés de l'origine sur l'axe $F_1$ sont associés à la modalité de salaire Moyen inférieur (25-30 k) ce qui suggère que les départements ayant une forte offre culturelle comme la Côte-d'Or tendent à être également liés à des niveaux de salaire légèrement inférieurs à la moyenne.
+
+Des départements comme le Gers, l’Ariège, l’Aveyron, les Vosges, le Tarn-et-Garonne et les Hautes-Pyrénées contribuent de manière significative à l'axe $F_2$. Ils sont caractérisés par un nombre plus faible de cinémas et de musées pour 100 000 habitants.
+On observe que les points les plus éloignés de l'origine sur l'axe $F_2$ sont associés aux modalités de salaire Moyen inférieur (25-30 k) et Faible (<25 k). 
+On peut donc dire que les départements associés à une offre culturelle moins développée en termes de cinémas et de musées sont également liés à des niveaux de salaire moyen net par an plus bas.
+
+
+### Représentations des départements suivant leur taux de chômage 
+
+```{r,fig.width=6.5, fig.height=3}
+library(factoextra)
+library(ggplot2)
+
+eig <- res.mca$eig
+percentage_dim1 <- round(eig[1, 2], 1)  
+percentage_dim2 <- round(eig[2, 2], 1)  
+
+ind_data <- as.data.frame(res.mca$ind$coord)  
+ind_data$Taux_chômage <- dt_clean_quali$Taux_chômage  
+
+ggplot(ind_data, aes(x = `Dim 1`, y = `Dim 2`, color = Taux_chômage)) +
+  geom_point(size = 3) +  
+  labs(
+    x = paste0("Dim 1 (", percentage_dim1, "%)"),
+    y = paste0("Dim 2 (", percentage_dim2, "%)"),
+    title = NULL,
+    color = ""  
+  ) +
+  scale_color_manual(values = RColorBrewer::brewer.pal(n = 4, name = "PiYG")) +  
+  theme_minimal() +  
+  theme(legend.position = "bottom") +  
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +  
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black")  
+```
+Les départements les plus éloignés de l'origine sur l'axe $F_1$ sont associés à des taux de chômage bas et moyens, de même que ceux situés loin de l'origine sur l'axe $F_2$. Cela indique que les départements avec une offre culturelle riche, ainsi que ceux avec un nombre plus faible de cinémas et de musées pour 100 000 habitants, sont associés à des niveaux de chômage plus faibles ou modérés.
+
+
+### Représentations des départements suivant leur part de population urbaine  
+
+```{r,fig.width=6.5, fig.height=3}
+library(factoextra)
+library(ggplot2)
+
+eig <- res.mca$eig
+percentage_dim1 <- round(eig[1, 2], 1)  
+percentage_dim2 <- round(eig[2, 2], 1)  
+
+ind_data <- as.data.frame(res.mca$ind$coord)  
+ind_data$Part_pop_urbaine <- dt_clean_quali$Part_pop_urbaine  
+
+ggplot(ind_data, aes(x = `Dim 1`, y = `Dim 2`, color = Part_pop_urbaine)) +
+  geom_point(size = 3) +  
+  labs(
+    x = paste0("Dim 1 (", percentage_dim1, "%)"),
+    y = paste0("Dim 2 (", percentage_dim2, "%)"),
+    title = NULL,
+    color = ""  
+  ) +
+  scale_color_manual(values = RColorBrewer::brewer.pal(n = 4, name = "BrBG")) +  
+  theme_minimal() +  
+  theme(legend.position = "bottom") +  
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") + 
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black")  
+```
+
+Le graphique montre que l'offre culturelle est liée à l'urbanisation : les départements avec une forte urbanisation (axe $F_1$) ont une offre culturelle plus riche, tandis que ceux avec une urbanisation plus faible (axe $F_2$) présentent une offre culturelle moins développée. Cette relation souligne qu'une plus grande urbanisation va de pair avec une plus grande densité d'équipements culturels.
+
+### Représentations des départements suivant leur dépenses culturelles par habitant  
+
+```{r,fig.width=6.5, fig.height=3}
+library(factoextra)
+library(ggplot2)
+
+eig <- res.mca$eig
+percentage_dim1 <- round(eig[1, 2], 1) 
+percentage_dim2 <- round(eig[2, 2], 1) 
+
+ind_data <- as.data.frame(res.mca$ind$coord)  
+ind_data$Dépenses_culturelles_par_hab <- dt_clean_quali$Dépenses_culturelles_par_hab  
+
+ggplot(ind_data, aes(x = `Dim 1`, y = `Dim 2`, color = Dépenses_culturelles_par_hab)) +
+  geom_point(size = 3) +  
+  labs(
+    x = paste0("Dim 1 (", percentage_dim1, "%)"),
+    y = paste0("Dim 2 (", percentage_dim2, "%)"),
+    title = NULL,
+    color = ""  
+  ) +
+  scale_color_manual(values = RColorBrewer::brewer.pal(n = 4, name = "PuOr")) +  
+  theme_minimal() +  
+  theme(legend.position = "bottom") +  
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +  
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black")  
+```
+
+Les départements comme la Côte-d’Or, les Alpes-Maritimes et la Haute-Savoie, qui ont une forte offre culturelle, sont associés à des dépenses culturelles très faibles à faibles (5-20 €) qur l'axe $F_1$. Cela suggère que des départements avec une offre culturelle riche n'ont pas nécessairement des dépenses culturelles élevées.
+
+Les départements comme la Côte-d’Or, le Gers, l'Ariège, etc., qui présentent une offre culturelle limitée (moins de musées et de cinémas), sont associés à des dépenses culturelles faibles à moyennes sur l'axe $F_2$. Cela montre que dans ces départements, une offre moins développée coïncide avec des dépenses culturelles plus modérées.
+
+Ainsi, on observe que l'offre culturelle plus importante ne se traduit pas nécessairement par des dépenses culturelles par habitant plus élevées.
+ 
+
+### Représentations des départements suivant leurs régions
+
+```{r,fig.width=7, fig.height=3.35}
+my_palette <- c("red", "brown", "green", "purple", "lightgreen", "pink", "cyan", "deeppink", "blue", "violet", 
+                "lightblue", "orange", "yellow", "deepskyblue")
+
+size_factor <- 1 / max(res.mca$ind$contrib)  
+sizes <- res.mca$ind$contrib * size_factor  
+
+p <- fviz_mca_ind(res.mca,  
+                  col.ind = dt_clean_quali$Région,  
+                  palette = my_palette,  
+                  addEllipses = FALSE,  
+                  label = "none",  
+                  axes = c(1, 2),   
+                  pointsize = sizes,    
+                  ggtheme = theme_minimal() 
+)
+
+p + labs(title = "") +  
+    scale_color_manual(name = "", 
+                       values = my_palette) +  
+    guides(size = "none")  
+```
+On remarque que les départements d'Ile-de-France sont tous regroupés en haut à gauche du plan $F_1$, $F_2$ ce qui signifie qu'ils partagent des caractéristiques communes. En revanche les départements de Provences-Alpes-Côte d'Azur ou encore ceux de Bourgogne-Franche-Comté qui sont éparpillés, présentent des profils plus diversifiés suggérant des variations plus importantes dans leurs caractéristiques culturelles.
+
+\newpage 
+
+# Partie 3 : Clustering
+
+Dans cette section, nous allons procéder à un clustering basé sur les résultats de l'ACM présentée précédemment, dans le but d'identifier des groupes de départements présentant des caractéristiques similaires.
+
+```{r}
+quali <- c(1:5)
+quali_sup <-c(6:10)
+res.mca <- MCA(dt_clean_quali, quali.sup = quali_sup, graph = F, ncp = Inf)
+```
+
+```{r}
+onu_hcpcinf <- HCPC(res.mca, graph = FALSE, consol = FALSE, nb.clust = 4)
+```
+
+## Analyse de l'inertie dans le clustering 
+
+```{r, fig.width=6, fig.height=2.8}
+k <- 10
+
+p1 <- (onu_hcpcinf$call$t$within[1:k] / onu_hcpcinf$call$t$within[1]) |>
+  data.frame(within = _) |>
+  ggplot() +
+  aes(x = 1:k, y = within) +
+  geom_bar(stat = "identity", fill = col_ind, alpha = 0.8) +
+  labs(title = "Inertie intra-cluster", x = "") +
+  theme_minimal() +
+  theme(
+    axis.title.y = element_blank(),  
+    axis.text.y = element_text(size = 8), 
+    plot.title = element_text(size = 10), 
+    axis.title.x = element_text(size = 10), 
+    axis.text.x = element_text(size = 8)   
+  )
+
+p2 <- onu_hcpcinf$call$t$inert.gain[1:k] |>
+  data.frame(inert_gain = _) |>
+  ggplot() +
+  aes(x = 1:k, y = inert_gain) +
+  geom_bar(stat = "identity", fill = col_ind, alpha = 0.8) +
+  labs(title = "Gain d'inertie inter-cluster", x = "") +
+  theme_minimal() +
+  theme(
+    axis.title.y = element_blank(),  
+    axis.text.y = element_text(size = 8), 
+    plot.title = element_text(size = 10), 
+    axis.title.x = element_text(size = 10), 
+    axis.text.x = element_text(size = 8)   
+  )
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+On observe que le gain d’inertie inter-cluster reste relativement important jusqu’à 4 clusters, puis commence à diminuer plus lentement, suggérant que l'ajout de clusters au-delà de ce point n'améliore que marginalement la séparation des groupes. Ainsi, couper le dendrogramme en 4 clusters semble être la meilleure solution, car c'est à ce stade que la séparation des clusters est optimale.
+
+## Dendrogramme et Répartition des Clusters
+
+```{r,fig.width=7, fig.height=3.5}
+fviz_dend(onu_hcpcinf, cex = 0.3, 
+          k_colors = c("deeppink1", "seagreen2", violet, orange), main="",
+          ylab = "")
+```
+Le dendrogramme montre comment les départements se regroupent progressivement en fonction de leur similarité en termes d'équipements culturels pour 100 000 habitants. Les hauteurs de fusion reflètent l'intensité des différences : une faible hauteur indique des départements très similaires, tandis qu'une hauteur plus élevée signale des différences plus marquées.
+
+- Cluster rose : Ce cluster contient seulement le département de la Côte-d'Or, qui se distingue par des caractéristiques très spécifiques et uniques en termes d'équipements culturels pour 100 000 habitants.
+
+- Cluster vert : Ce cluster regroupe 3 départements, les Alpes-Maritimes et la Haute-Savoie qui montrent des similitudes en terme d'offres culturelles plus fortes entre elles, qu'avec les Hautes-Alpes. 
+
+- Cluster violet : Ce cluster comprend deux groupes de départements qui présentent des différences relativement subtiles au sein de chaque groupe. Cependant, les différences entre les deux groupes eux-mêmes sont nettement plus marquées.
+
+- Cluster orange : Ce cluster est composé de nombreux petits groupes d'environ 4-5 départements qui sont très similaires entre eux en termes d'offre culturelle. Cependant, ces petits groupes sont plus éloignés les uns des autres et se rejoignent à des hauteurs plus élevées dans le dendrogramme. Cela indique que, bien que chaque sous-groupe soit homogène, les différences entre ces sous-groupes sont significatives.
+
+## Visualisation des clusters sur les différents plans factoriels
+
+```{r,fig.width=5, fig.height=2.5}
+library(factoextra)
+library(gridExtra)
+
+pal_js <- c("deeppink1", "seagreen2", violet, orange)
+
+p1 <- fviz_cluster(onu_hcpcinf, geom = "point", ellipse = TRUE, show.clust.cent = FALSE,
+                   palette = pal_js, ggtheme = theme_minimal()) + 
+  theme(legend.position = "none", 
+        plot.title = element_blank())  
+
+p2 <- fviz_cluster(onu_hcpcinf, geom = "point", ellipse = TRUE, show.clust.cent = FALSE, axes = c(3, 4),
+                   palette = pal_js, ggtheme = theme_minimal()) + 
+  theme(legend.position = "none", 
+        plot.title = element_blank())  
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+On remarque que sur le plan $F_1$, $F_2$, le cluster orange est représenté par un seul point en haut à droite, ce qui suggère que ce groupe est très concentré et distinct des autres. On voit que les clusters rose et violet chevauchent légèrement le cluster vert, ce qui indique qu'il y a certains départements dans ces deux clusters qui présentent des caractéristiques similaires avec ceux du cluster vert.
+
+Sur le plan $F_3$, $F_4$, tous les clusters se chevauchent, à l'exception du cluster orange, qui reste isolé. Cela suggère que ces axes ne permettent pas de bien séparer les différents clusters, rendant difficile la distinction des groupes. Ce phénomène est probablement dû à la faible proportion de variance capturée par ces deux axes, ce qui les rend moins discriminants.
+
+## Clustering Hiérarchique
+
+```{r}
+onu_hcpc_consol <- HCPC(res.mca,graph=FALSE, consol=TRUE, nb.clust = 4)
+```
+
+```{r,fig.width=5, fig.height=3}
+p1 <- fviz_cluster(onu_hcpcinf, geom = "point", ellipse = TRUE, show.clust.cent = FALSE,
+                   palette = pal_js, ggtheme = theme_minimal()) + 
+  labs(title = "Sans consolidation") + 
+  theme(legend.position = "none")
+
+p2 <- fviz_cluster(onu_hcpc_consol, geom = "point", ellipse = TRUE, show.clust.cent = FALSE,
+                   palette = pal_js, ggtheme = theme_minimal()) + 
+  labs(title = "Avec consolidation") + 
+  theme(legend.position = "none")
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+Avant la consolidation, le cluster rose chevauchait le cluster vert, mais après consolidation, la forme du cluster vert a été ajustée pour éviter tout chevauchement avec le cluster rose, les séparant ainsi complètement. Ce changement améliore la structure des groupes, rendant les frontières entre ces deux clusters plus nettes. Les autres clusters restent inchangés, ce qui montre que la consolidation a permis de mieux distinguer le cluster vert du cluster rose sans affecter la répartition des autres groupes.
+
+
+## Tableau des données regroupées par clusters selon les variables 
+
+```{r}
+dt_clean_quali <- dt_clean_quali %>%
+  rename(
+    "Ciné 100k hab" = "Ciné_100k_hab",
+    "Biblio 100k hab" = "Biblio_100k_hab",
+    "Spectacle 100k hab" = "Spectacles_100k_hab",
+    "Etabl cult 100k hab" = "Etablissements_cult_100k_hab",
+    "Musée 100k hab" = "Musées_100k_hab",
+    "Salaire moyen net an" = "Salaire_moyen_net_an",
+    "Taux chômage" = "Taux_chômage",
+    "Part pop urbaine" = "Part_pop_urbaine",
+    "Dépenses cult par hab" = "Dépenses_culturelles_par_hab",
+    "Région" = "Région"
+  )
+dt_clean_quali <- dt_clean_quali %>%
+  mutate(Région = gsub("-", " ", Région))
+```
+
+```{r}
+para <- onu_hcpc_consol$desc.ind$para
+dist <- onu_hcpc_consol$desc.ind$dist
+```
+
+```{r}
+par1 <- names(para[[1]])
+par2 <- names(para[[2]])
+par3 <- names(para[[3]])
+par4 <- names(para[[4]])
+dist1 <- names(dist[[1]])
+dist2 <- names(dist[[2]])
+dist3 <- names(dist[[3]])
+dist4 <- names(dist[[4]])
+```
+
+```{r}
+dt_clean_quali[c(par1, par2, par3, par4),] |> 
+  kable() |> 
+  kable_styling(
+    full_width = FALSE,
+    position = "center", font_size = 7,
+    bootstrap_options = c("striped", "hover", "condensed")
+  ) |> 
+  column_spec(1, width = "1.4cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  column_spec(2, width = "1.2cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  column_spec(3, width = "1.2cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  column_spec(4, width = "1.2cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  column_spec(5, width = "1.2cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  column_spec(6, width = "1.2cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  column_spec(7, width = "1.8cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  column_spec(8, width = "1.3cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  column_spec(9, width = "1.5cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  column_spec(10, width = "1.5cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  column_spec(11, width = "1.5cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  row_spec(0, extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  pack_rows("Cluster 1", 1, length(par1)) |> 
+  pack_rows("Cluster 2", length(par1) + 1, length(par1) + length(par2)) |> 
+  pack_rows("Cluster 3", length(par1) + length(par2) + 1, length(par1) + length(par2) + length(par3)) |> 
+  pack_rows("Cluster 4", length(par1) + length(par2) + length(par3) + 1, length(par1) + length(par2) + length(par3) + length(par4))
+```
+
+Le cluster 1 (violet) regroupe des départements avec  faible activité culturelle pour 100 000 habitants. Ces départements présentent  des variations notables dans les dépenses culturelles par habitant, allant de faibles à élevées. Le salaire moyen net par an y est généralement faible ou moyen inférieur, tandis que le taux de chômage est modéré. La population est souvent majoritairement urbaine, ce qui contraste avec la faible offre culturelle. 
+
+Le cluster 2 (orange) est caractérisé par une activité culturelle faible, mais avec cette fois-ci, un accès plus important aux bibliothèques et aux musées par rapport au premier cluster. Les départements de ce cluster présentent généralement un revenu moyen net par an globalement moyen inférieur, avec un taux de chômage variant de bas à élevé. La part de la population urbaine est majoritairement importante, ce qui pourrait suggérer une meilleure accessibilité aux infrastructures culturelles. Cependant, les dépenses des départements dans ces infrastructures par habitant sont faibles, ce qui limite l'impact de cette accessibilité. 
+
+Le cluster 3 (vert) se distingue par une offre culturelle élevée, comprenant de nombreux cinémas, bibliothèques, spectacles et musées. Les départements de la Haute-Savoie, des Alpes-Maritimes et des Hautes-Alpes, fortement urbanisés, bénéficient d'une large accessibilité à ces équipements culturels. Le salaire moyen net annuel et le taux de chômage y sont généralement modérés, voire faibles, tout comme les dépenses culturelles des départements par habitant.
+
+Le cluster 4 (rose) inclut exclusivement le département de la Côte-d'Or, qui se distingue par une offre culturelle riche. Ce département présente des dépenses culturelles des départements par habitant et un taux de chômage faibles, ainsi qu'un salaire moyen net inférieur. Par ailleurs, la part de la population urbaine y est moyenne, ce qui peut influencer l'accès aux infrastructures culturelles.
+
+
+## Tableau des données regroupées par clusters selon la distribution des individus
+
+```{r}
+dt_clean_quali[c(dist1, dist2, dist3, dist4),] |> 
+  kable() |> 
+  kable_styling(
+    full_width = FALSE,
+    position = "center", font_size = 7,
+    bootstrap_options = c("striped", "hover", "condensed")
+  ) |> 
+  column_spec(1, width = "1.4cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  column_spec(2, width = "1.2cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  column_spec(3, width = "1.2cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  column_spec(4, width = "1.2cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  column_spec(5, width = "1.2cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  column_spec(6, width = "1.2cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  column_spec(7, width = "1.8cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  column_spec(8, width = "1.3cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  column_spec(9, width = "1.5cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  column_spec(10, width = "1.5cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  column_spec(11, width = "1.5cm", extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  row_spec(0, extra_css = "word-wrap: break-word; word-break: break-word; white-space: normal;") |> 
+  pack_rows("Cluster 1", 1, length(dist1)) |> 
+  pack_rows("Cluster 2", length(dist1) + 1, length(dist1) + length(dist2)) |> 
+  pack_rows("Cluster 3", length(dist1) + length(dist2) + 1, length(dist1) + length(dist2) + length(dist3)) |> 
+  pack_rows("Cluster 4", length(dist1) + length(dist2) + length(dist3) + 1, length(dist1) + length(dist2) + length(dist3) + length(dist4))
+```
+
+Le premier cluster regroupe des départements très fortement urbanisés, principalement situés en Île-de-France, comme Paris, Essonne,.., ainsi que le Vaucluse en Provence-Alpes-Côte d’Azur. Ces territoires se caractérisent par une offre culturelle relativement faible pour 100 000 habitants avec notamment très peu de cinémas et de bibliothèques. Les salaires moyens nets par an sont globalement bons, variant de moyen inférieur (25-30k) à élevés (>35k), tandis que le taux de chômage oscille entre bas et élevé. Quant aux dépenses culturelles des départements  par habitant, elles sont majoritairement faibles (10-20€), mais atteignent des niveaux moyens (20-50€) dans le Vaucluse et élevées (>50€) à Paris.
+
+Le deuxième cluster regroupe des départements tels que le Territoire de Belfort, Haute-Corse, Haute-Marne, Lot, et Cantal, où l’offre culturelle pour 100 000 habitants est très diversifiée. On y trouve un grand nombre d’établissements culturels et de musées, mais relativement peu de cinémas et une offre de spectacles et de bibliothèques inégale. Les salaires moyens nets par an y sont principalement faibles (<25k), tandis que les dépenses culturelles des départements par habitant varient considérablement, allant de très faibles dans le Cantal (5-10€) à élevées en Haute-Corse (>50€). Le taux de chômage est principalement moyen, et la proportion de la population urbaine oscille entre forte et faible.
+
+Comme décrit précédemment, les clusters 3 et 4 se caractérisent par une offre culturelle élevée, un salaire moyen net par an  et un taux de chômage faible à moyen. Cependant, ils se distinguent par leur degré d'urbanisation : le cluster 3 correspondant aux Alpes-Maritimes, à la Haute-Savoie et aux Hautes-Alpes est globalement fortement urbanisé, tandis que le cluster 4 l'est de manière plus modérée. Concernant les dépenses culturelles des départements par habitant, le cluster 4 qui concerne uniquement la Côte-d’Or présente des dépenses faibles par habitant, tandis que celles du cluster 3 varient entre très faibles et moyennes.
+
+## Tableau des résultats du test du chi-deux
+
+```{r}
+options(scipen = 0)
+a <- onu_hcpc_consol$desc.var$test.chi2
+onu_hcpc_consol$desc.var$test.chi2 |> 
+  as.data.frame() |> 
+  format(digits = c(3)) |> 
+  kable() |> 
+  kable_styling(font_size = 10 )
+```
+
+On remarque que toutes les variables présentent des p-values inférieures à 0,05, indiquant des différences statistiquement significatives entre les clusters. Cela suggère que les caractéristiques culturelles et socio-économiques varient de manière marquée d’un cluster à l’autre.
+
+Certaines variables, comme le nombre de cinémas et de bibliothèques, affichent des p-values beaucoup plus faibles, ce qui révèle des différences nettes dans la répartition de ces équipements culturels entre les clusters. À l’inverse, des variables telles que le salaire moyen net par an et la région ont des p-values plus élevées, mais restent significatives, ce qui montre que, bien que des différences existent, les salaires restent relativement homogènes entre les clusters. Ainsi, les différences les plus marquées concernent les indicateurs culturels. 
+
+## Tableau des catégories descriptives du Cluster 1
+
+```{r}
+options(scipen = 0, digits = 4)
+onu_hcpc_consol$desc.var$category$"1"|> 
+  kable(digits=c(1, 1, 1, 200, 2) ) |>
+  kable_styling(font_size = 10 )
+```
+
+On observe que tous les départements présentant les modalités 15-30 bibliothèques, Île-de-France, Moyen supérieur (30-35k) et Normandie se retrouvent dans le Cluster 1. De plus, tous les départements de ce cluster affichent un nombre de cinémas pour 100 000 habitants compris entre 0 et 5, tandis que la majorité d'entre eux ont un salaire moyen net par an, moyen inférieur (entre 25 et 30k).
+Ce cluster n’est donc pas caractérisé par des départements ayant une offre culturelle abondante pour 100 000 habitants, comme le révèlent les zéros des modalités >80 B, >2 EC, 50-80 B et 5-10 C.
+
+\newpage 
+
+## Tableau des catégories descriptives du Cluster 2
+
+```{r}
+onu_hcpc_consol$desc.var$category$"2"|> 
+  kable(digits=c(1, 1, 1, 200, 2) ) |>
+  kable_styling(font_size = 10 )
+```
+
+Le cluster 2 regroupe tous les départements ayant la modalité 5-10 cinémas, ainsi que presque tous ceux ayant entre 50 et 80 bibliothèques. On note que 72,1 % des départements de ce cluster possèdent entre 2 et 4 musées. Ce cluster se caractérise donc par une offre culturelle modérée, tandis qu'une grande majorité des départements présentent des revenus moyens nets faibles par an.
+
+
+## Tableau des catégories descriptives du Cluster 3
+
+```{r}
+onu_hcpc_consol$desc.var$category$"3"|> 
+  kable(digits=c(1, 1, 1, 200, 2) ) |>
+  kable_styling(font_size = 10)
+```
+
+Le cluster 3 se distingue par une forte concentration de cinémas, avec 100% des départements ayant plus de 15 cinémas pour 100 000 habitants, ce qui est une caractéristique exclusive à ce groupe. Cela indique que le cinéma est un facteur clé dans ce cluster.
+La région Provence-Alpes-Côte d'Azur est également sur-représentée, avec 66,7% des départements du cluster issus de cette région, ce qui souligne un lien géographique fort.
+
+## Tableau des catégories descriptives du Cluster 4
+
+```{r}
+onu_hcpc_consol$desc.var$category$"4"|> 
+  kable(digits=c(1, 1, 1, 200, 2) ) |>
+  kable_styling(font_size = 10 )
+```
+
+Le cluster 4 composé uniquement de la Côte-d'Or,  est le seul département à présenter une densité de cinémas entre 10 et 15 pour 100 000 habitants. Cette modalité unique caractérise ce cluster. Cela met en évidence la singularité de la Côte-d'Or en termes d'offre cinématographique dans cette analyse.
+
+\newpage 
+
+# Conclusion
+
+L'ensemble des analyses (ACP, ACM et Clustering) a permis d'explorer en profondeur la relation entre les caractéristiques culturelles et socio-économiques des départements français. Le clustering, en particulier, nous a permis de segmenter les départements en quatre groupes distincts, facilitant ainsi l'analyse des tendances spécifiques à chaque groupe.  
+
+Plusieurs tendances clés se sont dégagées, notamment l'association complexe entre l'urbanisation et l'offre culturelle. Dans les zones fortement urbanisées, comme Paris ou l'Île-de-France, bien qu'il y ait une grande concentration d'équipements culturels, la densité de population élevée entraîne une offre culturelle relativement faible par 100 000 habitants. Cela met en évidence l'importance de la densité de la population dans l’interprétation de l'offre culturelle. Par conséquent, les départements très urbanisés peuvent sembler moins riches culturellement lorsqu’on mesure l'offre par rapport à la population, même s'ils disposent de nombreux équipements en nombre absolu. À l'inverse, dans des zones moins urbanisées, bien que le nombre total d'équipements soit plus modeste, l'offre culturelle par 100 000 habitants est souvent plus élevée en raison d'une population moins dense. Cette tendance est notamment observée dans des départements comme Paris, où l'offre culturelle par 100 000 habitants est faible malgré sa forte urbanisation, et la Côte-d’Or, qui affiche une offre culturelle plus riche par 100 000 habitants, bien qu'elle soit moyennement urbanisée.
+
+En parallèle, les analyses ont révélé que les départements affichant des taux de chômage plus faibles ou modérés sont généralement associés à une offre culturelle plus riche par 100 000 habitants. Cela suggère qu'une meilleure accessibilité aux équipements culturels pourrait avoir un impact positif sur la dynamique économique locale, contribuant à des conditions économiques plus stables.
+
+D'autre part, une tendance intéressante émerge entre l'offre culturelle et les salaires moyens : les départements à l'offre culturelle pour 100 000 habitant plus faible, souvent fortement urbanisés (comme l'Île-de-France), présentent des salaires moyens net par an plus élevés (25k€ à plus de 35k€), tandis que ceux avec une offre culturelle plus riche tendent à afficher des salaires moyens plus faibles (souvent inférieur à 25k€). Cela suggère que ces départements, bien que culturellement riches, sont souvent moins urbanisés et présentent une économie moins dynamique.
+
+Cependant, malgré ces observations, nous n’avons pas réussi à dégager de tendances claires entre l'offre culturelle et les dépenses culturelles des collectivités territoriales par habitant, ces dernières variant considérablement d’un département à l’autre sans lien évident avec les autres variables.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
