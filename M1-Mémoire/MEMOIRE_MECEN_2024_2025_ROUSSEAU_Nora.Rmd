@@ -1,0 +1,1185 @@
+---
+output:
+  pdf_document:
+    toc: false
+    number_sections: true
+  word_document:
+    toc: false
+  html_document:
+    toc: false
+    df_print: paged
+fontsize: 12pt
+geometry: a4paper, top=2.7cm, bottom=3.2cm, left=2cm, right=2cm
+always_allow_html: true
+header-includes:
+- \usepackage{graphicx} % Pour inclure des images
+- \usepackage{tikz} % Pour superposer du texte
+- \usepackage{geometry} % Pour ajuster les marges
+- \renewcommand{\contentsname}{Sommaire}
+- \usepackage{fancyhdr}
+- \pagestyle{fancy}
+- \fancyhf{} % Nettoie les entêtes et pieds de page
+- \fancyfoot[L]{\hspace{-1cm}\includegraphics[width=3.5cm]{universite-tours-logo.png}}
+- \renewcommand{\headrulewidth}{0pt}
+- \renewcommand{\footrulewidth}{0pt}
+- \fancyfoot[R]{\raisebox{1.2cm}{\hspace{-4cm}\Large\thepage}}
+- \usepackage{titlesec}
+- \titleformat{\section}[block]{\Huge\bfseries}{\thesection}{1em}{}
+- \titleformat{\subsection}[block]{\Large\bfseries}{\thesubsection}{1em}{}
+- \titleformat{\subsubsection}[block]{\Large\bfseries}{\thesubsubsection}{1em}{}
+- \setcounter{secnumdepth}{2} 
+---
+
+\begin{titlepage}
+    \begin{tikzpicture}[remember picture, overlay]
+        \node[anchor=north west, inner sep=0] at (current page.north west)
+        {\includegraphics[width=\paperwidth, height=\paperheight]{Pagedegarde3.pdf}};
+        
+        
+    \end{tikzpicture}
+\end{titlepage}
+
+\renewcommand{\contentsname}{Sommaire}
+\tableofcontents
+\newpage
+
+
+
+```{r setup, include=FALSE, message=FALSE, echo=FALSE}
+#| echo: false
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, comment = NA)
+library(haven)
+library(writexl)
+library(dplyr)
+library(kableExtra)
+library(ggplot2)
+library(scales)
+library(tibble)
+library(knitr)
+library(kableExtra)
+library(DT)
+library(tidyr)
+library(stargazer)
+```
+
+
+
+
+```{r}
+Kld <- read_dta("share_killed.dta")
+ELMPS <- read_dta("ELMPS2006.dta")
+```
+
+```{r}
+#write_xlsx(Kld, path = "share_killed.xlsx")
+#write_xlsx(ELMPS, path = "ELMPS_2006.xlsx")
+```
+
+```{r}
+df <- ELMPS[, c("stratum","q0104","q0101","q0108","q2036", "urban","q4103","q4201", "q4202m", "q4106wk",  "q4401", "q4405","q5116")]
+```
+
+```{r}
+names(df)[names(df) == "q0104"] <- "Age"
+names(df)[names(df) == "stratum"] <- "Label_gov"
+names(df)[names(df) == "q0101"] <- "Genre"
+names(df)[names(df) == "q0108"] <- "Statut_marital"
+names(df)[names(df) == "urban"] <- "Résidence_(urb/rur)"
+names(df)[names(df) == "q2036"] <- "Niveau_éduc_an"
+names(df)[names(df) == "q4202m"] <- "Durée_chômage"
+
+names(df)[names(df) == "q4103"] <- "Volonté_travailler"
+names(df)[names(df) == "q4201"] <- "Raison_non_emploi"
+
+names(df)[names(df) == "q4106wk"] <- "Nbr_h_travail_sem"
+names(df)[names(df) == "q4401"] <- "Emploi_3mois"
+
+names(df)[names(df) == "q4405"] <- "Age_1ère_année_travail"
+names(df)[names(df) == "q5116"] <- "Statut_salarial"
+```
+
+
+
+```{r}
+df$Label_gov <- as.character(df$Label_gov)
+df$Label_gov[df$Label_gov %in% c(1)] <- "Cairo"
+df$Label_gov[df$Label_gov %in% c(2, 16, 33)] <- "Giza"
+df$Label_gov[df$Label_gov %in% c(4)] <- "Alexandria"
+df$Label_gov[df$Label_gov %in% c(5)] <- "Port Said"
+df$Label_gov[df$Label_gov %in% c(6)] <- "Suez"
+df$Label_gov[df$Label_gov %in% c(7, 32)] <- "Ismailia"
+df$Label_gov[df$Label_gov %in% c(8, 24)] <- "Damietta"
+df$Label_gov[df$Label_gov %in% c(9, 25)] <- "Dakahlia"
+df$Label_gov[df$Label_gov %in% c(10,26)] <- "Sharkia"
+df$Label_gov[df$Label_gov %in% c(3,11,27)] <- "Kalyoubia"
+df$Label_gov[df$Label_gov %in% c(12,28)] <- "Kafr-Elsheikh"
+df$Label_gov[df$Label_gov %in% c(13,29)] <- "Gharbia"
+df$Label_gov[df$Label_gov %in% c(14,30)] <- "Menoufia"
+df$Label_gov[df$Label_gov %in% c(15,31)] <- "Behera"
+df$Label_gov[df$Label_gov %in% c(17,34)] <- "Beni-Suef"
+df$Label_gov[df$Label_gov %in% c(18,35)] <- "Fayoum"
+df$Label_gov[df$Label_gov %in% c(19,36)] <- "Menia"
+df$Label_gov[df$Label_gov %in% c(20,37)] <- "Asyout"
+df$Label_gov[df$Label_gov %in% c(21,38)] <- "Suhag"
+df$Label_gov[df$Label_gov %in% c(22,39)] <- "Qena"
+df$Label_gov[df$Label_gov %in% c(23,40)] <- "Aswan"
+```
+
+```{r}
+#table(ELMPS$stratum)
+```
+
+```{r}
+names(Kld)[names(Kld) == "Totalbygovernorate2"] <- "Nbr_morts"
+names(Kld)[names(Kld) == "nb_indiv_governorate2"] <- "Nbr_hab"
+names(Kld)[names(Kld) == "share_killed2"] <- "Part_morts_pop"
+```
+
+```{r}
+df_merged <- merge(df, Kld, by.x = "Label_gov", by.y = "label_gov", all.x = TRUE)
+```
+
+
+
+```{r}
+df_merged$Genre[df_merged$Genre == 2] <- 0                                  #Homme = 1 ; Femme = 0
+df_merged$`Résidence_(urb/rur)`[df_merged$`Résidence_(urb/rur)` == 2] <- 0      #Urb = 1 ; Rur = 0
+df_merged$Volonté_travailler[df_merged$Volonté_travailler == 2] <- 0        #Oui = 1 ; Non = 0
+df_merged$Emploi_3mois[df_merged$Emploi_3mois == 2] <- 0                 #Oui = 1 ; Non = 0
+```
+
+
+
+
+```{r}
+#table(df_merged$Statut_marital)
+```
+
+```{r}
+df_merged$Statut_marital <- as.character(df_merged$Statut_marital)
+df_merged$Statut_marital[df_merged$Statut_marital %in% c(3,4)] <- "3"
+df_merged <- df_merged[!df_merged$Statut_marital %in% c(5, 6), ]
+```
+
+
+
+
+```{r}
+#Suppression des divorcés et veufs : renommage de married en 1 et never married en 0 dans la table
+df_merged$Statut_marital[df_merged$Statut_marital %in% c(2)] <- "0"
+df_merged$Statut_marital[df_merged$Statut_marital %in% c(3)] <- "1"
+```
+
+```{r}
+#table(df_merged$Statut_marital)
+```
+
+```{r}
+df_merged <- df_merged %>%
+  mutate(Statut_marital = as.numeric(as.character(Statut_marital)))
+```
+
+
+
+
+```{r}
+df_merged$Niveau_éduc_an[df_merged$Niveau_éduc_an %in% c(9)] <- 18
+df_merged$Niveau_éduc_an[df_merged$Niveau_éduc_an %in% c(8)] <- 16
+df_merged$Niveau_éduc_an[df_merged$Niveau_éduc_an %in% c(7)] <- 15
+df_merged$Niveau_éduc_an[df_merged$Niveau_éduc_an %in% c(6)] <- 14
+df_merged$Niveau_éduc_an[df_merged$Niveau_éduc_an %in% c(4,5)] <- 12
+df_merged$Niveau_éduc_an[df_merged$Niveau_éduc_an %in% c(3)] <- 9
+df_merged$Niveau_éduc_an[df_merged$Niveau_éduc_an %in% c(2)] <- 6
+df_merged$Niveau_éduc_an[df_merged$Niveau_éduc_an %in% c(1)] <- 0
+```
+
+
+```{r}
+df_merged <- df_merged[!df_merged$Volonté_travailler %in% c(9), ]
+```
+
+
+```{r}
+df_merged <- df_merged[df_merged$Age >= 18 & df_merged$Age <= 29, ]
+```
+
+
+
+
+
+# Introduction 
+
+\vspace{12pt}
+
+Le Printemps arabe, déclenché en décembre 2010 en Tunisie, a marqué un tournant politique majeur dans plusieurs pays du monde arabe. Des soulèvements populaires ont rapidement émergé en Égypte, en Libye, en Syrie, au Yémen et dans d'autres États, chacun avec ses spécificités, mais tous portés par une même aspiration : celle d’une jeunesse en quête de justice sociale, de liberté politique et d’opportunités économiques. Ces mouvements souvent accompagnés de violences significatives ont profondément bouleversé les équilibres sociaux, économiques et institutionnels des pays concernés.
+ 
+\vspace{12pt}
+
+En Égypte, ces dynamiques ont trouvé un écho particulièrement fort. Le pays a été au cœur de l’actualité internationale avec un mouvement révolutionnaire massif qui, en février 2011, a conduit à la chute du président Hosni Moubarak, au pouvoir depuis près de trente ans. Ce soulèvement, largement pacifique au départ, a mobilisé des millions de citoyens de tous horizons sociaux, avec une jeunesse qui s’est imposée comme le principal moteur du changement. Si ces événements ont été largement analysés sous l’angle politique, leur impact socioéconomique notamment sur le marché du travail, demeure un objet d’étude essentiel, en particulier lorsqu’on s’intéresse à la jeunesse, souvent première victime du chômage structurel.
+
+\vspace{12pt}
+
+Ce mémoire s’inscrit dans cette perspective et se donne pour objectif d’évaluer dans quelle mesure le Printemps arabe a influencé la participation des jeunes Égyptiens au marché du travail. Pour ce faire, nous utiliserons deux bases de données clés : une base de données de 2006 permettant d’établir un état initial de l’emploi des jeunes par gouvernorat, et une autre concernant les violences survenues en 2011, durant les manifestations révolutionnaires.
+L’étude testera l’hypothèse selon laquelle les gouvernorats affichant les taux d’emploi les plus faibles avant les révoltes seront également ceux qui connaîtront les niveaux de violence les plus élevés durant la révolution. Ce lien, s’il est avéré, pourrait illustrer comment les inégalités d’accès à l’emploi, exacerbées par la crise économique et sociale, ont pu alimenter les tensions sociales et déclencher les mouvements de contestation. 
+
+\vspace{12pt}
+
+L’analyse reposera sur une approche économétrique, à travers la mise en œuvre de régressions linéaires visant à quantifier la relation entre les taux d’emploi des jeunes en 2006 et l’intensité des violences en 2011. 
+
+\vspace{12pt}
+
+La première partie de ce mémoire sera consacrée à une revue de littérature visant à situer cette étude dans le cadre des recherches déjà existantes. Nous présenterons ensuite les données utilisées, ainsi qu’une analyse descriptive détaillée pour en révéler les principales caractéristiques. La méthodologie économétrique sera ensuite exposée, avant d’aborder l’estimation des régressions linéaires. Enfin, une discussion permettra de tirer des conclusions à partir des résultats obtenues.
+
+
+\newpage
+
+# Revue de littérature
+
+\vspace{8pt}
+
+### Le rôle du chômage et de la participation des jeunes au marché du travail avant et après le Printemps arabe en Égypte
+
+Le chômage des jeunes a été identifié comme l’un des principaux facteurs des soulèvements du Printemps arabe, en particulier en Égypte. Cinar et Gocer soulignent dans leur article « The Reasons and Economic and Political Consequences of Arab Spring » publié en 2014, que des taux élevés de chômage, surtout parmi les jeunes, ont constitué un déclencheur majeur des manifestations. En Égypte, le taux de chômage des jeunes de 15 à 29 ans a atteint 41,4 % en 2012 (CAPMAS, 2012), et déjà en 2009, il s'élevait à 16 % (IDSC, 2010), ce qui a exacerbé un sentiment de désespoir et de rébellion parmi la jeunesse. 
+
+\vspace{8pt}
+
+Karim Abdel Ghafar Elsayed (2021) met également en lumière les conditions économiques précaires des jeunes avant 2011, marquées par un chômage stagné à 10 % et une pauvreté généralisée, où plus de 70 % de la population vivait avec moins de 5,5 $ par jour. Il souligne que ces facteurs économiques dégradés, combinés à l'augmentation du chômage des jeunes, ont été des moteurs essentiels des révoltes populaires. De plus, le chômage des jeunes a continué d'augmenter après 2011, ce qui montre que la révolution n'a pas immédiatement amélioré la situation de l'emploi.
+
+\vspace{8pt}
+
+Dans une analyse plus détaillée datant de 2017, Selwaness Irene et Roushdy Rania examinent l'évolution de la participation des jeunes au marché du travail avant et après 2011. Elles observent une baisse du taux de chômage chez les jeunes hommes entre 2009 et 2014 (de 13 % à 9,5 %), mais cette évolution masque une dégradation réelle du marché du travail. La baisse du chômage s'explique surtout par un retrait du marché du travail, notamment à travers une diminution de la participation économique. Chez les jeunes femmes, au contraire, la participation au marché du travail augmente, mais cela s'accompagne d'une hausse parallèle du chômage. Cette tendance souligne une dégradation de la qualité des emplois accessibles, avec une augmentation du travail informel et irrégulier chez les jeunes diplômés, surtout après la révolution. Cela reflète une précarisation du marché du travail et une acceptation par les jeunes de conditions de travail subalternes en raison de la difficulté d'accès à des emplois décents.
+
+\vspace{8pt}
+
+Le modèle de développement économique dirigé par l’État en Égypte a également joué un rôle clé dans la persistance du chômage élevé des jeunes. Wasseem Mina (2023) met en évidence que l’État privilégiait l’emploi public, qui est devenu de plus en plus difficile d'accès en raison des rigidités institutionnelles, du vieillissement de la fonction publique et des politiques restrictives de recrutement. En conséquence, les jeunes ont été contraints de se tourner vers le secteur informel, marqué par une instabilité et une faible protection sociale. Selon Mina, le taux de chômage moyen des jeunes entre 2007 et 2017 a oscillé autour de 30 %, ce qui indique un chômage structurel élevé.
+
+### Lien entre la vulnérabilité de l'emploi des jeunes avant 2011 et l'intensité des violences en 2011
+
+Certaines études suggèrent que les gouvernorats où la participation des jeunes au marché du travail était faible avant 2011 ont été ceux qui ont connu les violences les plus intenses lors des soulèvements de 2011, bien que cette relation ne soit pas systématiquement confirmée dans l’ensemble des recherches. AlAzzawi et Hlasny (2020) mettent en évidence que les jeunes dans la région MENA, et particulièrement en Égypte, ont été confrontés à une vulnérabilité économique majeure, marquée par un chômage élevé et une forte prévalence de l'emploi informel. Cette précarité a renforcé les inégalités sociales et la privation économique, des facteurs souvent liés à l'instabilité politique et aux violences. En Égypte, la contraction des emplois publics et la domination du secteur informel ont contribué à une exclusion sociale croissante des jeunes, exacerbée par des chocs économiques comme la crise de 2008. Ce contexte a alimenté un mécontentement généralisé, qui s'est exprimé par des violences lors des soulèvements de 2011. Ces éléments viennent soutenir l'hypothèse selon laquelle les gouvernorats égyptiens avec des taux d'emploi jeunes faibles en 2006 ont été plus touchés par les violences de 2011.
+
+\vspace{8pt}
+
+Dans une perspective similaire, Nayef Al-Shammari et John Willoughby explorent la relation entre chômage des jeunes et instabilité politique dans leur article datant de 2019. Leur étude comparative dans la région MENA montre que, contrairement au chômage général, le chômage des jeunes est un facteur clé pour prédire l’émergence de troubles politiques et de violences. Ils avancent l'idée que dans des contextes comme celui de l’Égypte, les régions où le chômage des jeunes était élevé avant 2010 ont été plus susceptibles de connaître des violences en 2011. Cette relation entre chômage et violences est renforcée par des facteurs politiques structurels, tels que des fragilités institutionnelles et une gouvernance déficiente, qui ont exacerbé l’instabilité sociale.
+
+\vspace{8pt}
+
+Les travaux de Ulrik Jørgensen et Sondre Johan Knutsen (2021) viennent confirmer cette hypothèse, en démontrant que les gouvernorats où le chômage des jeunes était le plus élevé avant 2010 ont connu une plus forte intensité de violences lors des soulèvements de 2011. Leur analyse montre également que la révolution n’a pas apporté d'améliorations durables dans les conditions économiques des jeunes, le chômage restant supérieur à 30 % dans de nombreuses régions, ce qui a contribué à la persistance de la précarité et des tensions sociales.
+
+### Synthèse
+
+Les études convergent sur l'idée que le chômage élevé et la faiblesse de la participation des jeunes au marché du travail avant 2011 ont constitué des facteurs déterminants des violences de 2011. La précarité des emplois, la marginalisation économique et les inégalités régionales expliquent en grande partie les dynamiques sociales et politiques qui ont alimenté les troubles. Ces éléments apportent un cadre solide pour l'analyse économétrique, visant à tester la relation entre le taux d’emploi des jeunes en 2006 et l’intensité des violences enregistrées en 2011 au niveau des gouvernorats.
+
+
+
+\newpage
+
+# Présentation des données
+
+Cette étude repose sur la combinaison de deux sources de données complémentaires. La première est issue de l’enquête ELMPS 2006 (Egypt Labor Market Panel Survey), produite par l’Economic Research Forum. Elle fournit des données individuelles détaillées sur la population Égyptienne en 2006, et permet d’analyser leur situation vis-à-vis du marché du travail. Cette base inclut des informations relatives à l’emploi, au chômage, aux niveaux d’éducation, aux caractéristiques démographiques et socio-économiques des individus. L’ensemble des observations hors de la tranche d’âge des 18-29 ans a été exclu, afin de se concentrer exclusivement sur la jeunesse égyptienne, groupe central de cette recherche.
+
+\vspace{5pt}
+
+La seconde base de données, quant à elle, contient des informations agrégées au niveau des gouvernorats sur le nombre d’habitants et le nombre de morts enregistrés en 2011, année marquée par les soulèvements du Printemps arabe. À partir de ces variables, une mesure de l’intensité de la violence a été construite (part des morts dans la population de chaque gouvernorat). Cette base a ensuite été fusionnée avec ELMPS 2006 via l’identifiant des gouvernorats, permettant ainsi de croiser les caractéristiques individuelles observées avant la révolution avec le niveau de violence ayant frappé chaque région en 2011.
+
+\vspace{5pt}
+
+Bien que les données socio-économiques datent d’avant la révolution, leur utilisation permet d’examiner dans quelle mesure les conditions initiales d’accès au marché du travail peuvent contribuer à comprendre le contexte de frustration ayant précédé le Printemps arabe, et d’explorer un éventuel lien entre le faible taux d’emploi des jeunes en 2006 et l’intensité des violences observées en 2011 selon les gouvernorats.
+
+\vspace{5pt}
+
+Les variables retenues pour cette étude sont décrites dans le tableau ci-dessous.
+
+
+```{r}
+description <- tibble(
+  `Nom de la variable` = c(
+    "Label_gov",
+    "Genre",
+    "Statut_marital",
+    "Résidence_(urb/rur)",
+    "Emploi_3mois",
+    "Volonté_travailler",
+    "Raison_non_emploi",
+    "Statut_salarial",
+    "Age",
+    "Niveau_éduc_an",
+    "Age_1ère_année_travail",
+    "Durée_chômage",
+    "Nbr_h_travail_sem",
+    "Nbr_morts",
+    "Nbr_hab",
+    "Part_morts_pop"
+  ),
+  Type = c(
+    "factor",
+    "factor",
+    "factor",
+    "factor",
+    "factor",
+    "factor",
+    "factor",
+    "factor",
+    "numeric",
+    "numeric",
+    "numeric",
+    "numeric",
+    "numeric",
+    "numeric",
+    "numeric",
+    "numeric"
+  ),
+  Description = c(
+    "Nom du gouvernorat",
+    "1: Homme ; 0: Femme",
+    "1: Marié ; 0: Célibataire",
+    "L'individu habite dans une zone urbaine: 1 ; dans une zone rurale: 0",
+    "L'individu a eu un emploi dans les 3 derniers mois : 1: Oui ; 0: Non",
+    "1: Oui ; 0: Non",
+    "Motif déclaré de non-emploi ",
+    "Type de statut dans l’emploi",
+    "Âge en années",
+    "Nombres d'années d'étude ",
+    "Âge lors de la première année de travail",
+    "Durée du chômage en mois",
+    "Nombre d’heures travaillées par semaine",
+    "Nombre de morts recensés par gouvernorat en 2011",
+    "Population totale du gouvernorat",
+    "Nombre de morts / population totale"
+   )
+) |> 
+  group_by(Type) |> 
+  arrange(Type)
+```
+
+```{r}
+tableau_html <- function(
+    x,
+    titre = NULL,
+    digit = 4,
+    align = "c",
+    escape = TRUE,
+    format = "html",
+    style_police = "Roboto",
+    col.names = colnames(x),
+    row.names = TRUE,
+    zoom = 1,
+    small = FALSE,
+    ...) {
+  table <- x |>
+    kable(
+      caption = titre,
+      align = align,
+      format = format,
+      digits = digit,
+      escape = escape,
+      col.names = col.names,
+      row.names = row.names,
+      ...
+    )
+
+  if (small) {
+    table <- table |>
+      kable_styling(
+        full_width = FALSE,
+        latex_options = c("hold_position", "scale_down", "longtable")
+      )
+  }
+
+  table <- table |>
+    kable_material(
+      lightable_options = c("striped", "hover"),
+      html_font = style_police,
+      ...
+    )
+return(table)
+}
+```
+
+```{r}
+description |> tableau_html(format = "markdown", align = "l", font_size = 10) |>
+  column_spec(1, bold = TRUE) |> 
+  row_spec(0, bold = TRUE) 
+```
+
+Une fois les variables définies, nous pouvons maintenant entamer l’analyse descriptive des données, afin de mieux comprendre les tendances générales et les relations qui émergent au sein de l'ensemble des variables étudiées
+
+
+\newpage
+
+## Statistiques 
+
+```{r}
+df_num <- df_merged[, !(names(df_merged) %in% c("Label_gov","Genre","Statut_marital","Résidence_(urb/rur)","Volonté_travailler","Raison_non_emploi","Emploi_3mois","Statut_salarial"))]
+
+results_formatted <- data.frame(
+  Variable = names(df_num),
+  Valeurs_Manquantes = sapply(df_num, function(x) sum(is.na(x))),
+  Moyenne = sapply(df_num, function(x) format(round(mean(x, na.rm = TRUE), 2), nsmall = 2, trim = TRUE)),
+  Ecart_Type = sapply(df_num, function(x) format(round(sd(x, na.rm = TRUE), 2), nsmall = 2, trim = TRUE)),
+  Minimum = sapply(df_num, function(x) format(round(min(x, na.rm = TRUE), 2), nsmall = 2, trim = TRUE)),
+  Q1 = sapply(df_num, function(x) format(round(quantile(x, 0.25, na.rm = TRUE), 2), nsmall = 2, trim = TRUE)),
+  Médiane = sapply(df_num, function(x) format(round(median(x, na.rm = TRUE), 2), nsmall = 2, trim = TRUE)),
+  Q3 = sapply(df_num, function(x) format(round(quantile(x, 0.75, na.rm = TRUE), 2), nsmall = 2, trim = TRUE)),
+  Maximum = sapply(df_num, function(x) format(round(max(x, na.rm = TRUE), 2), nsmall = 2, trim = TRUE))
+)
+
+results_formatted$Moyenne <- sapply(results_formatted$Moyenne, function(val) {
+  if (grepl("\\.00$", val)) {
+    return(sub("\\.00$", "", val))  
+  }
+  return(val)
+})
+results_formatted$Ecart_Type <- sapply(results_formatted$Ecart_Type, function(val) {
+  if (grepl("\\.00$", val)) {
+    return(sub("\\.00$", "", val)) 
+  }
+  return(val)
+})
+results_formatted$Minimum <- sapply(results_formatted$Minimum, function(val) {
+  if (grepl("\\.00$", val)) {
+    return(sub("\\.00$", "", val))  
+  }
+  return(val)
+})
+results_formatted$Q1 <- sapply(results_formatted$Q1, function(val) {
+  if (grepl("\\.00$", val)) {
+    return(sub("\\.00$", "", val))  
+  }
+  return(val)
+})
+results_formatted$Médiane <- sapply(results_formatted$Médiane, function(val) {
+  if (grepl("\\.00$", val)) {
+    return(sub("\\.00$", "", val))  
+  }
+  return(val)
+})
+results_formatted$Q3 <- sapply(results_formatted$Q3, function(val) {
+  if (grepl("\\.00$", val)) {
+    return(sub("\\.00$", "", val))  
+  }
+  return(val)
+})
+results_formatted$Maximum <- sapply(results_formatted$Maximum, function(val) {
+  if (grepl("\\.00$", val)) {
+    return(sub("\\.00$", "", val)) 
+  }
+  return(val)
+})
+
+results_formatted <- results_formatted[, -1]
+
+kable(results_formatted, 
+      format = "pipe",  
+      col.names = c("Variable", "Valeurs Manquantes", "Moyenne", "Écart-Type", "Minimum", "1er Quartile", "Médiane", "3e Quartile",  "Maximum" ), align = "c"
+) %>%
+  column_spec(1, width = "2.7cm") %>%  # Définir la largeur de la colonne 1 (Variable)
+  column_spec(2, width = "2.1cm") %>%  # Définir la largeur de la colonne 2 (Valeurs Manquantes)
+  column_spec(3, width = "1.4cm") %>%  # Définir la largeur de la colonne 3 (Moyenne)
+  column_spec(4, width = "1.5cm") %>%  # Définir la largeur de la colonne 4 (Écart-Type)
+  column_spec(5, width = "1.5cm") %>%  # Définir la largeur de la colonne 5 (Minimum)
+  column_spec(6, width = "1.5cm") %>%  # Définir la largeur de la colonne 6 (1er Quartile)
+  column_spec(7, width = "1.4cm") %>%  # Définir la largeur de la colonne 7 (Médiane)
+  column_spec(8, width = "1.5cm") %>%  # Définir la largeur de la colonne 8 (3e Quartile)
+  column_spec(9, width = "1.5cm") %>%  # Définir la largeur de la colonne 9 (Maximum)
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE, font_size = 10)  
+```
+
+
+Le tableau descriptif des variables quantitatives met en évidence les principales caractéristiques des jeunes âgés de 18 à 29 ans en Égypte en 2006. Leur âge moyen est de 23 ans, ce qui les situe à la jonction entre études et insertion professionnelle. Avec en moyenne 10,9 années d’éducation, la majorité de l'échantillon n’a pas accédé à l’enseignement supérieur, ce qui peut constituer un frein à l’emploi. Le chômage s’étend sur une durée moyenne de près de trois ans, avec de fortes disparités, révélant une vulnérabilité économique marquée avant la révolution. Parmi ceux qui occupent un emploi, la durée moyenne hebdomadaire de travail est élevée (près de 50 heures), suggérant des conditions de travail intensives, probablement dans le secteur informel. Enfin, les données sur la violence indiquent une forte hétérogénéité entre gouvernorats, avec un nombre moyen de morts relativement faible mais très inégalement réparti.
+
+
+
+
+
+
+\newpage
+
+## Répartition des différentes variables 
+
+```{r,fig.height=3}
+library(rcartocolor)
+par(mfrow = c(1, 3), pty = "s", mar = c(2, 2, 4, 2), oma = c(0, 0, 0, 0))  
+
+pie_with_percent <- function(vec, labels_base, colors, title, text_color = "white") {
+  pct <- round(100 * vec / sum(vec), 1)
+  labels <- labels_base
+
+  angles <- cumsum(c(0, vec)) / sum(vec) * 2 * pi
+  mid_angles <- (head(angles, -1) + tail(angles, -1)) / 2
+  
+
+  x <- 0.6 * cos(mid_angles)
+  y <- 0.6 * sin(mid_angles)
+  
+  pie(vec,
+      labels = labels,
+      col = colors,
+      border = "white",  
+      main = title,
+      radius = 1)
+  
+
+  text(x, y, paste0(pct, "%"), col = text_color, font = 2, cex = 1.2)
+}
+
+
+vec_marital <- table(df_merged$Statut_marital)
+labels_marital <- c("Célibataire", "Marié")
+colors_marital <- c( "#66BA6AFF","#C7E5C9FF")
+pie_with_percent(vec_marital, labels_marital, colors_marital, "Statut marital", text_color = "white")
+
+
+vec_res <- table(df_merged$`Résidence_(urb/rur)`)
+labels_res <- c("Rural", "Urbain")
+colors_res <- c("#B2DFDAFF", "#26A599FF")
+pie_with_percent(vec_res, labels_res, colors_res, "Résidence", text_color = "white")
+
+
+vec_vol <- table(df_merged$Volonté_travailler)
+labels_vol <- c("Non", "Oui")
+colors_vol <- c("#00BBD3FF","#B2EBF2FF")
+pie_with_percent(vec_vol, labels_vol, colors_vol, "Volonté de travailler", text_color = "white")
+```
+
+
+On remarque que près de 60 % des jeunes sont célibataires, tandis qu’environ 40 % sont mariés. Ce résultat est relativement attendu compte tenu de la tranche d’âge considérée, qui inclut à la fois des jeunes adultes au début de leur vie professionnelle et des étudiants.
+À noter que les jeunes divorcés et veufs, ont été exclus de la base de données en raison de leur faible effectif (moins de 1 % de l’échantillon).
+
+\vspace{3pt}
+
+En ce qui concerne le lieu de résidence, les jeunes sont répartis de manière assez équilibrée entre les zones rurales et urbaines, avec une légère majorité en milieu urbain. Cela peut refléter l’urbanisation croissante en Égypte au début des années 2000, où une partie importante de la population jeune migre vers les villes à la recherche de meilleures opportunités d’emploi et d’éducation.
+
+\vspace{3pt}
+
+Le dernier graphique montre un résultat particulièrement marquant : plus de 80 % des jeunes déclarent ne pas vouloir travailler, contre moins de 20 % qui expriment le souhait d’avoir un emploi. Ce chiffre peut sembler élevé, mais il mérite d’être interprété avec prudence. Il ne signifie pas nécessairement un désintérêt pour le travail en soi, mais peut refléter d’autres réalités : certains jeunes peuvent être encore en études, d’autres peuvent être découragés par le manque d’opportunités, ou encore soumis à des normes sociales (notamment pour les femmes) qui limitent leur participation au marché du travail.
+
+\vspace{3pt}
+
+Passons maintenant à la répartition de l’emploi selon le genre, pour mieux comprendre les inégalités professionnelles entre hommes et femmes.
+
+
+```{r}
+emploi_genre <- table(df_merged$Emploi_3mois, df_merged$Genre)
+
+emploi_genre_pct <- prop.table(emploi_genre) * 100
+
+bar_heights <- barplot(t(emploi_genre_pct),
+                       col = c( "pink1","lightblue1"),
+                       beside = FALSE,
+                       main = "Participation des jeunes au marché du travail selon le genre (%)",
+                       ylab = "Pourcentages",
+                       names.arg = c("N'a pas d'emploi", "A un emploi"),
+                       ylim = c(0, 60), width = 0.9)
+
+cumsum_vals <- apply(t(emploi_genre_pct), 2, cumsum)
+
+text(x = bar_heights,
+     y = cumsum_vals[1, ] / 2,
+     labels = paste0(round(t(emploi_genre_pct)[1, ], 1), "%"),
+     col = "black", cex = 0.8)
+
+text(x = bar_heights,
+     y = cumsum_vals[1, ] + (t(emploi_genre_pct)[2, ] / 2),
+     labels = paste0(round(t(emploi_genre_pct)[2, ], 1), "%"),
+     col = "black", cex = 0.8)
+
+legend("topright",
+       legend = c("Homme", "Femme"),
+       fill = c("lightblue1", "pink1"),
+       bty = "n")
+```
+
+Environ 40 % des jeunes occupent un emploi, tandis que 60 % restent sans emploi. Cette situation témoigne d’un marché du travail en 2006 difficile d’accès pour une part importante des jeunes, ce qui peut contribuer à expliquer le climat de frustration économique dans lequel s’est inscrit le Printemps arabe. Parmi ces jeunes, la répartition par genre révèle une forte inégalité : 33 % des hommes ont un emploi contre seulement 8,3 % des femmes, tandis que 42,2 % des femmes sont sans emploi contre 16,5 % des hommes. Ces écarts importants reflètent des barrières socio-économiques et culturelles qui limitent l’intégration professionnelle des femmes.
+
+\vspace{3pt}
+
+Poursuivons avec un aperçu des niveaux d'études des jeunes, un facteur clé dans leur insertion sur le marché du travail.
+
+
+```{r}
+df_plot <- df_merged %>%
+  filter(!is.na(Niveau_éduc_an)) %>%
+  mutate(
+    Niveau_éduc_an = as.factor(Niveau_éduc_an),
+    Emploi = ifelse(Emploi_3mois == 1, "Emploi", "Sans emploi")
+  ) %>%
+  group_by(Niveau_éduc_an, Emploi) %>%
+  summarise(n = n(), .groups = "drop")
+
+total_pop <- sum(df_plot$n)
+
+df_plot <- df_plot %>%
+  mutate(pct_total = n / total_pop)
+```
+
+
+```{r}
+df_plot <- df_merged %>%
+  filter(!is.na(Niveau_éduc_an)) %>%
+  mutate(Niveau_éduc_an = as.factor(Niveau_éduc_an)) %>%
+  group_by(Niveau_éduc_an) %>%
+  summarise(n = n(), .groups = "drop")
+
+total_pop <- sum(df_plot$n)
+
+df_plot <- df_plot %>%
+  mutate(
+    pct_total = n / total_pop,
+    pos = cumsum(pct_total) - pct_total / 2
+  )
+
+ggplot(df_plot, aes(x = Niveau_éduc_an, y = pct_total, fill = Niveau_éduc_an)) +
+  geom_bar(stat = "identity", fill="#FDD834FF",show.legend = FALSE) +
+  scale_y_continuous(
+    limits = c(0, 0.5),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  labs(
+    title = "Répartition des jeunes Egyptiens par nombre d’années d’études",
+    x = "Nombre d'années d'étude",
+    y = " "
+  ) +
+  theme_minimal()+
+  theme(plot.title = element_text(face = "bold"))
+
+#"#92C5DE"
+```
+
+En 2006, la répartition des jeunes Égyptiens selon le nombre d’années d’études met en évidence une concentration marquée autour de 12 années d’études, atteintes par environ 50 % d’entre eux, ce qui correspond à l’obtention du diplôme de fin de secondaire en Égypte, équivalent du baccalauréat en France (fin du lycée). Un autre groupe significatif (environ 20 %) poursuit jusqu’à 16 années d’études, soit l’équivalent d’une licence (bac +3) dans le système français. À l'inverse, les jeunes ayant entre 0 et 9 années d’études représentent une minorité, mais restent présents : cela correspond à des niveaux allant du primaire jusqu’au collège en France. Cette structure reflète un système éducatif qui scolarise une grande partie des jeunes jusqu’au secondaire, voire jusqu’à l’université, mais qui reste déséquilibré face à un marché du travail incapable d’absorber ces diplômés, contribuant ainsi au chômage élevé des jeunes.
+
+\vspace{3pt}
+
+Passons maintenant à l'analyse du statut salarial des jeunes, afin de voir dans quelle mesure leur niveau d'éducation influence leur situation professionnelle.
+
+```{r}
+library(rcartocolor)
+
+pie_with_percent <- function(vec, labels_base, colors, title, text_color = "white") {
+  pct <- round(100 * vec / sum(vec), 1)
+  labels <- labels_base
+  
+
+  angles <- cumsum(c(0, vec)) / sum(vec) * 2 * pi
+  mid_angles <- (head(angles, -1) + tail(angles, -1)) / 2
+  
+  x <- 0.75 * cos(mid_angles)
+  y <- 0.75 * sin(mid_angles) + 0.03 * sign(sin(mid_angles))
+  
+  pie(vec,
+      labels = labels,
+      col = colors,
+      border = "white",  
+      main = title,
+      radius = 1)
+  
+  text(x, y, paste0(pct, "%"), col = text_color, font = 2, cex = 1)
+}
+
+
+vec_marital <- table(df_merged$Statut_salarial)
+labels_marital <- c("Salarié", "Employeur", "Indépendant", "Travailleur \n familial non \n rémunéré")
+colors_marital <- c( "#762A83","#E7D4E8" ,"#C2A5CF","#9970AB")
+
+pie_with_percent(vec_marital, labels_marital, colors_marital, "Répartition du statut salarial des jeunes", text_color = "white")
+```
+
+On observe que la grande majorité des jeunes actifs sont salariés, représentant environ 70 %. 
+En parallèle, près de 20 % des jeunes travaillent comme membres non rémunérés au sein de leur famille, reflétant une part importante du travail informel chez les jeunes en Égypte. 
+Enfin, les jeunes indépendants et les jeunes employeurs restent très peu nombreux, un phénomène fréquent chez cette tranche d’âge dans de nombreux pays.
+
+\vspace{3pt}
+
+Après avoir observé le statut salarial, il est intéressant de se pencher sur la répartition du temps de travail hebdomadaire des jeunes.
+
+
+```{r}
+df_merged_filtré <- df_merged %>%
+  filter(!is.na(Nbr_h_travail_sem))
+
+df_merged_filtré$Heures_cat <- cut(df_merged_filtré$Nbr_h_travail_sem,
+                            breaks = c(0, 19, 35, 45, 55, Inf),
+                            labels = c("≤19h", "20–35h", "36–45h", "46–55h", ">55h"),
+                            right = TRUE)
+
+df_merged_filtré$Heures_cat <- factor(df_merged_filtré$Heures_cat,
+                                      levels = c("≤19h", "20–35h", "36–45h", 
+                                                 "46–55h", ">55h"))
+
+ggplot(df_merged_filtré, aes(x = Heures_cat)) +
+  geom_bar(aes(y = ..count.. / sum(..count..)), fill = "#69b3a2") +
+  scale_y_continuous(labels = percent_format()) +
+  labs(title = "Répartition du temps de travail hebdomadaire des jeunes (%)",
+       x = "Heures de travail",
+       y = "") +
+  theme_minimal()+
+  theme(plot.title = element_text(face = "bold"))
+```
+
+Le graphique révèle que la majorité des jeunes en emploi consacrent un nombre d’heures de travail très élevé chaque semaine : plus de 30 % dépassent les 55 heures, et près de 60 % travaillent au-delà de 45 heures hebdomadaires. À l’inverse, seuls moins de 5 % effectuent moins de 20 heures. Ces chiffres illustrent une forte intensité du travail chez les jeunes actifs, bien au-delà de la durée légale hebdomadaire souvent reconnue dans de nombreux pays, notamment les 35 heures. Cela traduit des conditions de travail particulièrement exigeantes, avec peu de place pour des formes de travail à temps partiel ou flexible.
+
+\vspace{3pt}
+
+Examinons à présent la durée du chômage des jeunes, pour mieux comprendre les raisons de leur inactivité.
+
+
+```{r}
+df_plot <- df_merged %>%
+  filter(!is.na(Raison_non_emploi), !is.na(Durée_chômage)) %>%
+  mutate(Durée_chômage_cat = cut(Durée_chômage,
+                                 breaks = c(0, 6, 12, 24, Inf),
+                                 right = TRUE,
+                                 include.lowest = TRUE,
+                                 labels = c("0–6 mois", "7–12 mois", "13–24 mois", "25+ mois"))) %>%
+  count(Raison_non_emploi, Durée_chômage_cat) %>%
+  group_by(Raison_non_emploi) %>%
+  mutate(n_total = sum(n),
+         part_interne = n / n_total) %>%
+  ungroup() %>%
+  mutate(part_externe = n / sum(n)) %>%
+  group_by(Raison_non_emploi) %>%
+  arrange(Durée_chômage_cat) %>%
+  mutate(y_pos = rev(cumsum(rev(part_externe))) - part_externe / 2) %>%
+  ungroup()
+
+totaux_duree <- df_plot %>%
+  group_by(Durée_chômage_cat) %>%
+  summarise(pct_cat = sum(part_externe)) %>%
+  arrange(Durée_chômage_cat)
+
+labels_legende <- paste0(levels(df_plot$Durée_chômage_cat), 
+                         " (", percent(totaux_duree$pct_cat, accuracy = 1), ")")
+names(labels_legende) <- levels(df_plot$Durée_chômage_cat)
+
+mes_couleurs <- c(
+  "0–6 mois"   = "#FCDE9C",
+  "7–12 mois"  = "#FAAC7B",
+  "13–24 mois" = "#E04572",
+  "25+ mois"   = "#B02378"
+)
+
+# Graphique final
+ggplot(df_plot, aes(x = factor(Raison_non_emploi, levels = 1:6,
+                               labels = c("Pas d'offre", "Qualification", "Salaire", 
+                                          "Structure non \n appropriée", "Localisation", "Autre")),
+                    y = part_externe, fill = Durée_chômage_cat)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = percent(part_externe, accuracy = 1), y = y_pos),
+            color = "white", size = 3) +
+  scale_y_continuous(labels = percent_format(), expand = expansion(mult = c(0, 0.1))) +
+  scale_fill_manual(values = mes_couleurs,
+                    labels = labels_legende) +
+  labs(title = "Répartition des durées de chômage selon la raison de non emploi",
+       x = "",
+       y = "",
+       fill = "Durée du chômage") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.title = element_text(face = "bold"))
+```
+
+Le graphique ci-dessus présente la répartition des durées de chômage chez les jeunes Égyptiens âgés de 18 à 29 ans en 2006, en fonction de la raison déclarée de non-emploi.
+
+\vspace{5pt}
+
+On constate que 47 % des jeunes chômeurs sont sans emploi depuis plus de 25 mois, ce qui témoigne de l’importance du chômage de très longue durée bien avant les événements du Printemps arabe. Cette situation est particulièrement marquée chez ceux qui déclarent ne pas trouver d’offres d’emploi : à elle seule, cette catégorie regroupe plus de 50 % des jeunes chômeurs, dont 26 % en chômage de très longue durée.
+
+\vspace{5pt}
+
+La seconde raison la plus fréquente, évoquée par environ 25 % des jeunes chômeurs, est liée à un manque de qualifications, indiquant que de nombreux jeunes ne possèdent pas les compétences requises pour les postes disponibles.
+
+\vspace{5pt}
+
+À l’inverse, les motifs liés au salaire, à la localisation ou à une structure non appropriée apparaissent marginaux.
+Par ailleurs, peu de jeunes trouvent un emploi rapidement, puisque la majorité reste au chômage pendant de longues périodes, ce qui souligne la difficulté d’insertion sur le marché du travail.
+
+\vspace{5pt}
+
+Faisons maintenant une première exploration de l'hypothèse centrale de cette étude en croisant les taux d'emploi et les niveaux de violence par gouvernorat, pour analyser si les gouvernorats les plus touchés par le chômage ont également connu les violences les plus intenses pendant le Printemps arabe.
+
+
+```{r}
+par(mar = c(5, 10, 4, 5))
+df_summary <- df_merged %>%
+  group_by(Label_gov) %>%
+  summarise(
+    taux_emploi = mean(Emploi_3mois == 1, na.rm = TRUE),
+    Part_morts_pop = mean(Part_morts_pop, na.rm = TRUE)
+  ) %>%
+  arrange(desc(taux_emploi))  
+
+ggplot(df_summary, aes(x = reorder(Label_gov, taux_emploi), 
+                       y = taux_emploi, 
+                       fill = Part_morts_pop)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(round(taux_emploi * 100, 1), "%")), 
+            hjust = -0.2, size = 3.5) +
+  scale_y_continuous(limits = c(0, 0.55)) +  
+  coord_flip() +
+  scale_fill_gradient(low = "#FFEBEDFF", high = "#D22E2EFF", 
+                      name = "Proportion \nde morts") +
+  labs(
+    title = "Taux d'emploi et niveau de violence par gouvernorat",
+    x = "Gouvernorat",
+    y = "Taux d'emploi"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    legend.position = c(0.89, 0.35),  
+    legend.text = element_text(size = 9),
+    legend.title = element_text(size = 10),
+    legend.justification = c(0, 0.5)
+  )
+```
+
+Le graphique ci-dessus présente une visualisation croisée du taux d’emploi des jeunes en 2006 et du niveau de violence lors du Printemps arabe en 2011, mesuré ici par la proportion de morts par gouvernorat, dans le but d’examiner si les régions les plus touchées par le chômage avant les révoltes ont également connu les niveaux de violence les plus élevés.
+
+\vspace{5pt}
+
+On constate une variation significative du taux d’emploi des jeunes selon les gouvernorats. Par exemple, Beni-Suef affiche le taux d’emploi le plus élevé (53,5 %), tandis que Behera a le plus faible (35 %). Les gouvernorats où le taux d’emploi était relativement élevé en 2006, comme Beni-Suef, Menia et Suhag, ont aussi connu un faible niveau de violence pendant le Printemps arabe (indiqué par des couleurs plus claires sur le graphique).
+
+\vspace{5pt}
+
+À l’inverse, certains gouvernorats présentent à la fois un faible taux d’emploi et un niveau de violence élevé, comme Port Said, Ismailia et Le Caire, ce qui se traduit par une teinte rouge foncée. Toutefois, cette relation n’est pas systématique : des gouvernorats comme Behera et Sharkia, bien qu’ayant les taux d’emploi les plus bas, n’ont quasiment pas connu de violences.À l’inverse, Port Said et Suez, dont les taux d’emploi ne sont ni particulièrement élevés ni particulièrement faibles, figurent pourtant parmi les gouvernorats les plus touchés par la violence.
+
+\vspace{5pt}
+
+Cela montre qu’il n’y a pas de lien évident ou systématique entre un fort taux de chômage des jeunes en 2006 et l’intensité des violences en 2011. D’autres facteurs semblent intervenir, comme la dynamique politique locale, les inégualités sociales ou encore la concentration urbaine. Cette exploration justifie la suite du travail empirique, qui cherchera à tester plus rigoureusement cette relation à travers des régressions économétriques. La section suivante détaille la méthodologie employée pour analyser plus en profondeur ces facteurs à travers des régressions économétriques.
+
+
+\newpage
+
+
+# Méthode utilisée
+
+L'objectif de cette analyse est d'estimer l'impact des conditions socio-économiques des jeunes en 2006 sur l'intensité des violences survenues lors du Printemps arabe en 2011, mesurée par la part des morts dans la population des gouvernorats. Pour cela, des régressions linéaires multiples sont utilisées afin d'examiner comment des variables telles que le niveau d'éducation, l'emploi et les caractéristiques démographiques influencent la violence observée pendant la révolution.
+
+### Agrégation des données
+
+Étant donné que la variable mesurant l’intensité de la violence, à savoir la part des morts dans la population, est disponible uniquement au niveau agrégé des gouvernorats, les variables individuelles issues de l’enquête ELMPS 2006 ont été agrégées sous forme de moyennes par gouvernorat. Cette agrégation a permis de maintenir la cohérence des niveaux d’analyse entre la variable dépendante et les variables explicatives dans les régressions, en associant les caractéristiques socio-économiques des jeunes à leur gouvernorat respectif. De cette manière, les facteurs socio-économiques observés au niveau individuel ont été regroupés à l’échelle des gouvernorats pour une analyse cohérente et pertinente.
+
+\vspace{5pt}
+
+Les principales variables explicatives utilisées dans l'analyse sont les suivantes :
+
+Statut_marital_moy, Niveau_éduc_moy, Résidence_moy, Age_1ère_année_travail_moy, Emploi_3mois_H, Emploi_3mois_F, Volonté_travailler_moy, et Pas_d_offre.
+
+\vspace{5pt}
+
+La variable dépendante, Part_morts_pop, représente la part des morts dans la population de chaque gouvernorat en 2011, qui est utilisée comme indicateur de l’intensité des violences pendant le Printemps arabe.
+
+### Modélisation économétrique
+
+Les régressions sont réalisées à l'aide de la méthode des moindres carrés ordinaires (MCO), qui permet d'estimer les relations linéaires entre la variable dépendante (la part des morts dans la population) et plusieurs variables explicatives socio-économiques. Cette méthode est particulièrement adaptée ici, car elle permet de quantifier l'impact de chaque facteur tout en contrôlant les effets des autres variables. L’utilisation de MCO repose sur l'hypothèse que la relation entre les variables est linéaire et que les erreurs sont indépendantes et normalement distribuées, ce qui garantit des estimations fiables des coefficients.
+
+\vspace{5pt}
+
+Plusieurs modèles ont été spécifiés pour tester différentes combinaisons de variables explicatives, afin d'analyser l'impact des conditions socio-économiques des jeunes en 2006 sur l'intensité des violences en 2011. Ces régressions permettront d'identifier les facteurs les plus significatifs expliquant la variation de l'intensité des événements au niveau des gouvernorats.
+
+
+### Estimation et Interprétation
+
+Les résultats des régressions seront d'abord analysés en fonction de la significativité statistique des variables. Une variable sera considérée significative si sa p-value est inférieure à 0,05. Une fois les variables significatives identifiées, leurs coefficients seront interprétés.
+
+\vspace{5pt}
+
+Si un coefficient est positif, cela signifie qu'une augmentation de la variable explicative est associée à une hausse de l'intensité de la violence (c'est-à-dire de la part des morts dans la population). Inversement, si le coefficient est négatif, cela indique qu'une augmentation de la variable explicative est associée à une diminution de l'intensité de la violence.
+
+\vspace{5pt}
+
+Les résultats des différentes régressions seront comparés pour identifier les facteurs les plus influents. Cette comparaison permettra de déterminer s'il existe un lien ou non entre les conditions socio-économiques des jeunes avant la révolution et l'intensité des violences pendant le Printemps arabe.
+
+\vspace{5pt}
+
+Entrons désormais dans le vif du sujet en procédant à l’analyse des résultats des régressions réalisées.
+
+\newpage
+
+
+# Régressions
+
+```{r}
+df_mean_gouv <- df_merged %>%
+  group_by(Label_gov) %>%
+  summarise(
+    Age_moy = mean(Age, na.rm = TRUE),
+    Genre_moy = mean(Genre, na.rm = TRUE),
+    Statut_marital_moy = mean(Statut_marital, na.rm = TRUE),
+    Résidence_moy = mean(`Résidence_(urb/rur)`, na.rm = TRUE),
+    Volonté_travailler_moy = mean(Volonté_travailler, na.rm = TRUE),
+    Raison_non_emploi_moy = mean(Raison_non_emploi, na.rm = TRUE),
+    Emploi_3mois_moy = mean(Emploi_3mois, na.rm = TRUE),
+    Nbr_h_travail_sem_moy = mean(Nbr_h_travail_sem, na.rm = TRUE),
+    Durée_chômage_moy = mean(Durée_chômage, na.rm = TRUE),
+    Niveau_éduc_moy = mean(Niveau_éduc_an, na.rm = TRUE),
+    Age_1ère_année_travail_moy = mean(Age_1ère_année_travail, na.rm = TRUE),
+    Statut_salarial_moy = mean(Statut_salarial, na.rm = TRUE),
+    Nbr_morts = first(Nbr_morts),
+    Nbr_hab = first(Nbr_hab),
+    Part_morts_pop = first(Part_morts_pop)
+  )
+```
+
+
+## Modèle 1
+
+\[
+\text{Part\_morts\_pop}_i = \beta_0 \, + \, \beta_1 \, \text{Statut\_marital\_moy}_i \, + \, \beta_2 \, \text{Niveau\_éduc\_moy}_i \, + \, \beta_3 \, \text{Résidence\_moy}_i \, + \, \varepsilon_i
+\]
+
+
+```{r}
+model1<-lm(Part_morts_pop ~ Statut_marital_moy +  Niveau_éduc_moy + Résidence_moy, data = df_mean_gouv)
+stargazer(model1, type = "text", digits = 3)
+```
+
+Dans ce premier modèle, deux variables apparaissent comme significatives : le niveau moyen d’éducation des jeunes au sein du gouvernorat (au seuil de 5 %) et la proportion de résidents en milieu urbain (au seuil de 1 %). En revanche, le statut marital des jeunes ne semble pas avoir de lien statistiquement significatif avec la part des morts liées aux violences.
+
+\vspace{1pt}
+
+Concrètement, une année d'étude supplémentaire est associée en moyenne à une augmentation de 0,059 du taux de mortalité lié à la violence. De même, une hausse d’un point de la proportion de jeunes vivant en zone urbaine correspond en moyenne à une augmentation de 0,212 du taux de violence.
+
+\vspace{1pt}
+
+On peut donc en déduire que le nombre d'année d'étude et le degré d’urbanisation jouent un rôle important dans l’intensité des violences observées dans les gouvernorats, ce qui invite à approfondir l’analyse en intégrant d’autres dimensions socio-économiques dans le modèle suivant.
+
+
+## Modèle 2
+
+\[
+\text{Part\_morts\_pop}_i = \beta_0 \, + \,  \beta_1 \, \text{Niveau\_éduc\_moy}_i \, + \, \beta_2 \, \text{Résidence\_moy}_i 
+\]
+\[
+ + \, \beta_3 \, \text{Age\_1ère\_année\_travail\_moy}_i \, + \, \varepsilon_i
+\]
+
+```{r}
+model2<-lm(Part_morts_pop ~ Niveau_éduc_moy + Résidence_moy  +
+                      Age_1ère_année_travail_moy , data = df_mean_gouv)
+stargazer(model2, type = "text", digits = 3)
+```
+
+Dans ce second modèle, seule la proportion de jeunes vivant en zone urbaine apparaît comme significativement liée à la part des morts liées aux violences, au seuil de 5 %. Le niveau moyen d’éducation est marginalement significatif (au seuil de 10 %), tandis que l’âge moyen à la première année de travail ne présente aucun lien statistiquement significatif avec la violence.
+
+\vspace{5pt}
+
+L’augmentation d’une unité de la proportion de jeunes en zone urbaine se traduit en moyenne par une hausse de 0,201 du taux de mortalité lié à la violence.En revanche, le lien avec le niveau d’éducation, plus net dans le modèle précédent, s’atténue ici en présence de nouvelles variables.
+
+\vspace{5pt}
+
+Ces observations soulignent l’importance du contexte urbain dans la survenue des violences et suggèrent que d’autres facteurs socio-économiques liés à l’emploi pourraient éclairer davantage ces dynamiques dans le modèle suivant.
+
+
+## Modèle 3
+
+\[
+\text{Part\_morts\_pop}_i = \beta_0  \, + \, \beta_1 \, \text{Emploi\_3mois\_H}_i \, + \, \beta_2 \, \text{Emploi\_3mois\_F}_i \, + \, \varepsilon_i
+\]
+
+```{r}
+emploi_homme <- df_merged %>%
+  filter(Genre == 1) %>%
+  group_by(Label_gov) %>%
+  summarise(Emploi_3mois_H = mean(Emploi_3mois, na.rm = TRUE))
+
+emploi_femme <- df_merged %>%
+  filter(Genre == 0) %>%
+  group_by(Label_gov) %>%
+  summarise(Emploi_3mois_F = mean(Emploi_3mois, na.rm = TRUE))
+```
+
+```{r}
+df_mean_gouv <- df_mean_gouv %>%
+  left_join(emploi_homme, by = "Label_gov") %>%
+  left_join(emploi_femme, by = "Label_gov")
+```
+
+```{r}
+model3 <- lm(Part_morts_pop ~ Emploi_3mois_H + Emploi_3mois_F, data = df_mean_gouv)
+stargazer(model3, type = "text", digits = 3)
+```
+
+On remarque dans ce troisième modèle que seule la variable représentant l’emploi des hommes sur les trois derniers mois se révèle significative, avec un niveau de confiance de 5 %. 
+
+\vspace{5pt}
+
+En effet, chaque augmentation d’une unité du taux d’emploi masculin, correspond à une baisse moyenne de 0,672 du taux de mortalité liée à la violence. Ce résultat suggère que l’amélioration de l’emploi chez les hommes pourrait jouer un rôle dans la réduction des violences observées.
+
+\vspace{5pt}
+
+Le taux d’emploi féminin, quant à lui, n’apporte pas de lien statistique pertinent.
+Cette absence de lien peut s’expliquer par le fait que, dans le contexte étudié, la participation des femmes au marché du travail est relativement faible, ce qui limite l’impact de cette variable dans les analyses. Pour cette raison, les régressions suivantes se concentreront principalement sur l’emploi masculin, afin de mieux saisir son influence sur la dynamique des violences.
+
+\newpage
+
+## Modèle 4
+
+\[
+\text{Part\_morts\_pop}_i = \beta_0 \, + \, \beta_1 \, \text{Niveau\_éduc\_moy}_i \, + \, \beta_2 \, \text{Résidence\_moy}_i \, + \, \beta_3 \, \text{Age\_moy}_i 
+\]
+\[
++ \, \beta_4 \, \text{Volonté\_travailler\_moy}_i \, + \, \beta_5 \, \text{Emploi\_3mois\_H}_i \, + \, \beta_6 \, \text{Statut\_marital\_moy}_i \, + \varepsilon_i
+\]
+
+```{r}
+model4<-lm(Part_morts_pop ~  Niveau_éduc_moy + Résidence_moy + Age_moy + Volonté_travailler_moy + Emploi_3mois_H + Statut_marital_moy , data = df_mean_gouv)
+stargazer(model4, type = "text", digits = 3)
+```
+
+Dans ce quatrième modèle, les résultats confirment ce qui avait déjà été observé précédemment : le niveau moyen d’éducation et la proportion de jeunes en zone urbaine restent les deux variables les plus solidement associées au taux de mortalité liée à la violence, avec un seuil de significativité de 5 %. Leur influence se confirme, malgré l’ajout de nouvelles variables comme l’âge moyen (dont l’effet pourrait être plus indirect ou nuancé), l’emploi masculin, le statut marital ou encore la volonté de travailler, qui ne montrent, quant à elles, aucun lien significatif avec le niveau de violence.
+
+\vspace{5pt}
+
+Le fait que l’emploi masculin ne soit plus significatif une fois les autres facteurs intégrés indique que le faible taux d’emploi des hommes en 2006 n’explique pas à lui seul la hausse des violences dans les gouvernorats, ce lien étant probablement influencé par d’autres variables socio-économiques.
+
+\vspace{5pt}
+
+Ainsi, malgré l’introduction de nouvelles variables, ce modèle renforce l’idée que le niveau d'éducation et l’environnement urbain pèsent de manière constante sur l’intensité des violences. Cela suggère une certaine robustesse de ces deux dimensions explicatives à travers les différentes spécifications testées.
+
+\newpage
+
+## Modèle 5
+
+\[
+\text{Part\_morts\_pop}_i = \beta_0 \, + \,  \beta_1 \, \text{Pas\_d\_offre}_i \, + \,  \beta_2 \, \text{Niveau\_éduc\_moy}_i \, + \, \beta_3 \, \text{Résidence\_moy}_i 
+\]
+\[
++ \, \beta_4 \, \text{Statut\_marital\_moy}_i \, + \, \varepsilon_i
+\]
+
+```{r}
+df_sans_emploi <- df_merged[df_merged$Emploi_3mois == 0, ]
+
+df_sans_emploi$Pas_d_offre <- ifelse(df_sans_emploi$Raison_non_emploi == 1, 1, 0)
+
+prop_pas_offre <- aggregate(Pas_d_offre ~ Label_gov, data = df_sans_emploi, mean)
+
+df_mean_gouv <- merge(df_mean_gouv, prop_pas_offre, by = "Label_gov")
+```
+
+
+```{r}
+model5 <- lm(Part_morts_pop ~ Pas_d_offre + Niveau_éduc_moy + Résidence_moy + Statut_marital_moy,
+                          data = df_mean_gouv)
+stargazer(model5, type = "text", digits = 3)
+```
+
+Cette ultime régression examine l’effet de la proportion de chômeurs déclarant, parmi les différentes raisons du non-emploi, l’absence d’offre d’emploi en 2006. Les résultats montrent que cette situation spécifique de non-emploi n’est pas significativement liée à la violence observée en 2011 comme en témoigne sa pvalue > 0.05.
+Cela suggère que cette forme de frustration économique déclarée ne différencie pas statistiquement les gouvernorats plus ou moins touchés par les violences.
+
+\vspace{5pt}
+
+Par conséquent, les conclusions précédentes restent inchangées : le niveau moyen d’éducation et la proportion de jeunes en zone urbaine continuent d’être les facteurs socio-économiques les plus fortement associés à la violence.
+
+
+
+\newpage
+
+# Discussion 
+
+Cette étude a cherché à évaluer l’impact du Printemps arabe sur la participation des jeunes Égyptiens au marché du travail à partir des données disponibles en 2006, couplées à des données sur la violence en 2011. Si cette approche apporte un premier éclairage sur les liens entre conditions socio-économiques antérieures et intensité des violences, plusieurs limites méthodologiques, notamment d’ordre économétrique, doivent être soulignées.
+
+### Limites des données disponibles
+
+La principale contrainte de cette étude est l’absence de données sur le marché du travail post-révolutionnaire. En effet, disposer uniquement d’une base de données de 2006, antérieure aux événements, et des données sur les violences en 2011, limite fortement la possibilité d’évaluer directement l’évolution de la participation des jeunes au marché du travail suite au Printemps arabe. Cette approche impose de raisonner sur des corrélations indirectes, en faisant l’hypothèse que le niveau d’emploi antérieur et les caractéristiques socio-économiques expliquent en partie l’intensité des violences.
+
+\vspace{5pt}
+
+Or, cette hypothèse ne permet pas de saisir les dynamiques réelles du marché du travail dans la période post-2011, ni l’impact direct des réformes ou des politiques mises en œuvre après la révolution. Une analyse en série temporelle, reposant sur des données de panel couvrant plusieurs années avant et après 2011, aurait été plus appropriée pour observer les tendances, ruptures ou effets différés liés aux événements politiques. 
+
+\vspace{5pt}
+
+Par ailleurs, les données sur la violence se limitent à un seul indicateur, le taux de mortalité liée à la violence, sans prise en compte d’autres formes de violence comme le nombre de bléssés, le nombre d'arrestations ; ni des conséquences économiques et sociales plus larges (inflation, baisse du tourisme, fuite des investissements étrangers), ce qui restreint la compréhension globale des tensions sociales.
+
+### Résultats principaux et interprétation des facteurs associés à la violence
+
+L’analyse économétrique a mis en évidence deux facteurs principaux associés à la violence : le niveau moyen d’éducation en années et la proportion de jeunes en zone urbaine. Ces résultats suggèrent que des contextes urbains densément peuplés, avec un certain niveau d’éducation, seraient plus exposés aux tensions conduisant aux violences.
+
+\vspace{5pt}
+
+Cependant, ces conclusions sont à nuancer. L’association positive entre un niveau d’éducation plus élevé et une violence accrue peut sembler contre-intuitive. Elle pourrait s’expliquer par la concentration plus forte de jeunes éduqués en milieu urbain, plus sensibilisés aux revendications politiques ou plus aptes à s’organiser. Cette complexité souligne les limites d’une modélisation linéaire simple qui ne capte pas forcément la nature multifactorielle et contextuelle des violences.
+
+\vspace{5pt}
+
+Par ailleurs, le faible lien trouvé entre l’emploi (notamment masculin) et la violence, surtout lorsqu’il est confronté à d’autres variables, invite à réfléchir sur l’insuffisance d’un seul indicateur pour mesurer la précarité économique. En particulier, l’absence d’effet significatif du motif de non-emploi « pas d’offre » parmi les chômeurs peut sembler surprenante, mais elle peut s’expliquer par une normalisation du chômage structurel. Autrement dit, dans un contexte où l’absence d’opportunités est perçue comme une situation habituelle plutôt que comme une injustice nouvelle, elle ne provoque pas nécessairement de réaction violente. Ce sont plutôt des perceptions d’inégalités de traitement ou un sentiment d’exclusion qui semblent alimenter les tensions sociales.
+
+
+
+### Limites économétriques et solutions
+
+Les résultats de l'analyse économétrique sont confrontés à plusieurs défis qui compliquent leur interprétation.
+
+\vspace{5pt}
+
+Tout d'abord, l'endogénéité représente un problème majeur. Certaines variables explicatives, telles que le niveau d'éducation et les taux d'emploi, peuvent être simultanément influencées par la violence elle-même, créant ainsi un biais dans les estimations. Cette endogénéité, non prise en compte dans les modèles linéaires classiques, limite la validité causale des résultats.
+
+\vspace{5pt}
+
+Ensuite, ne pas avoir pris en compte d'autres facteurs socio-économiques, politiques ou institutionnels pouvant influencer à la fois le marché du travail et la violence (comme les politiques locales ou l'évolution de l'économie générale) représente une limitation. Cela peut entraîner un biais dans les résultats.
+
+\vspace{5pt}
+
+Par ailleurs, l'hétérogénéité non observée, qui désigne les caractéristiques spécifiques non mesurées de chaque gouvernorat, peut aussi influencer les résultats. L'absence d'effets fixes ou d'autres méthodes permettant de prendre en compte cette hétérogénéité réduit la robustesse des estimations.
+
+\vspace{5pt}
+
+Ces limitations soulignent que les relations estimées doivent être interprétées comme des corrélations et non comme des liens causaux stricts.
+
+\vspace{5pt}
+
+Afin d'améliorer la robustesse de l'analyse, plusieurs pistes méthodologiques peuvent être envisagées. L'utilisation de modèles à effets fixes permettrait de tenir compte des spécificités non observées propres à chaque gouvernorat. De plus, l'introduction de techniques permettant de traiter l'endogénéité, telles que les variables instrumentales, pourrait offrir des solutions, à condition d'identifier des instruments valides. Enfin, l'intégration de variables explicatives supplémentaires, incluant des indicateurs économiques, politiques et démographiques plus détaillés, enrichirait également l'analyse.  
+
+\vspace{5pt}
+
+Comme mentionné précédemment, pour évaluer plus précisément l'impact du Printemps arabe sur la participation des jeunes au marché du travail, il est crucial de disposer de données de panel couvrant la période post-2011, afin de mieux saisir les évolutions qui ont suivi la révolution. 
+
+
+
+\newpage
+
+
+# Conclusion
+
+Cette étude a cherché à explorer l’impact du Printemps arabe sur la participation des jeunes Égyptiens au marché du travail, en se concentrant particulièrement sur les dynamiques socio-économiques antérieures à la révolution de 2011. En croisant des données sur les conditions socio-économiques des jeunes en 2006 et sur l'intensité des violences en 2011, nous avons tenté de comprendre les facteurs qui ont contribué à la montée des tensions sociales et des violences pendant cette période cruciale de l’histoire récente de l’Égypte.
+
+\vspace{8pt}
+
+Nos résultats ont révélé que deux facteurs étaient significativement associés à l'intensité des violences : le niveau d’éducation des jeunes au sein des gouvernorats et la proportion de jeunes vivant en milieu urbain. Ces éléments suggèrent qu'une population jeune, plus instruite et concentrée en milieu urbain, pourrait être plus exposée à des tensions sociales, notamment en raison de ses attentes accrues en matière de justice sociale et d’opportunités économiques. L’urbanisation, en particulier, semble jouer un rôle majeur dans la survenue des violences, en partie en raison des conditions socio-économiques difficiles dans ces zones densément peuplées.
+
+\vspace{8pt}
+
+Cependant, certains des résultats obtenus, notamment le lien marginal entre le chômage et la violence, soulignent la complexité des relations entre les inégalités économiques et les mouvements sociaux. L’absence d’une association forte entre le chômage masculin et la violence, ainsi que la faible pertinence du motif de « manque d’offre d’emploi » parmi les chômeurs, remettent en question l’idée selon laquelle l’absence d’opportunités économiques explique directement l’intensité des violences. Ces résultats suggèrent que d’autres facteurs, comme le sentiment d’injustice ou de marginalisation, peuvent jouer un rôle tout aussi crucial dans l’émergence de ces tensions.
+
+\vspace{8pt}
+
+Les limites méthodologiques de cette étude, notamment l'absence de données post-révolutionnaires et l'usage d'une approche économétrique simple, ont restreint la possibilité de tirer des conclusions causales fermes. L’endogénéité et l’hétérogénéité non observée dans les données ont également constitué des défis importants. Cela invite à envisager des approches méthodologiques plus robustes, comme l’utilisation de modèles à effets fixes ou d’instruments valides pour traiter l’endogénéité. De plus, une analyse avec des données de panel couvrant la période post-2011 semble crucial afin  de mieux saisir l’impact réel du Printemps arabe sur l’emploi des jeunes et sur les dynamiques de violence en Égypte.
+
+\vspace{8pt}
+
+En définitive, bien que l’étude ait exploré plusieurs facteurs socio-économiques, nous n’avons pas pu conclure à un lien direct entre la participation au marché du travail des jeunes et l’intensité des violences lors du Printemps arabe. Cette analyse, bien que pertinente, reste trop simple en termes de méthodologie pour un sujet aussi complexe. Elle suggère que d'autres éléments, encore non explorés, pourraient être cruciaux pour mieux comprendre les dynamiques sociales, économiques et politiques qui ont conduit aux événements révolutionnaires.
+
+
+
+
+
+
+
+\newpage
+
+# Bibliographie
+
+- Selwaness, I., & Roushdy, R. (2019). The Arab Spring and the Employability of Youth: Early evidence from Egypt. Global Labor Organization (GLO). 
+
+- Cinar, S., & Gocer, I. (2014). The Reasons and Economic and Political Consequences of Arab Spring. Khazar Journal of Humanities & Social Sciences, vol. 17, n°2. 
+
+- Jørgensen, U., & Knutsen, S. J. (2020). The Arab Spring: Economic causes and consequences of the Arab Spring. Norwegian School of Economics. 
+
+- Mina, W. (2020). State-led Development and Youth Unemployment in the Arab and non-Arab Countries. Plateforme Qeios. 
+
+- Elsayed, K. A. G. (2021). Economic Consequences of the Arab Spring in the Middle East. Graduate School of Public Administration, Seoul National University. 
+
+- AlAzzawi, S., & Hlasny, V. (2020). Vulnerable employment of Egyptian, Jordanian, and Tunisian youth. UNU-WIDER. 
+
+- Al-Shammari, N., & Willoughby, J. (2019). Determinants of political instability across Arab Spring countries. Taylor & Francis Group. 
+
+- Chatgpt (2025) : Aide à la reformulation de l’introduction, de la revue de littérature, aide à l'affichage du graphique sur la durée du chômage en fontion de la raison de non emploi et corrections des fautes d'orthographe.
