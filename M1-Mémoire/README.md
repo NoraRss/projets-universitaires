@@ -1,1 +1,1 @@
-
+Ce mémoire analyse l’impact du Printemps arabe sur la participation des jeunes Égyptiens au marché du travail, à partir de données sur l’emploi avant 2011 et les violences pendant la révolution. Une modélisation économétrique (régressions linéaires) permet d’estimer l’association entre faibles taux d’emploi des jeunes et intensité des violences par gouvernorat.
