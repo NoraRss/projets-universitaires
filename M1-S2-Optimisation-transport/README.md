@@ -1,1 +1,1 @@
-
+Application Python avec interface Tkinter utilisant l’optimisation linéaire (scipy.optimize.linprog) et pandas, pour générer un plan de transport optimal en tenant compte des stocks, demandes, délais clients et coûts de livraison.
