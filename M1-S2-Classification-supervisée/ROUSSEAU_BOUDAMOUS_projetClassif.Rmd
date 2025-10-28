@@ -1,0 +1,3837 @@
+---
+output:
+  pdf_document:
+    latex_engine: xelatex
+    toc: false
+    number_sections: true
+  word_document:
+    toc: false
+fontsize: 11pt
+geometry: a4paper, top=1.8cm, bottom=1.9cm, left=1.5cm, right=1.5cm
+always_allow_html: true
+header-includes:
+  - \usepackage{graphicx}   
+  - \usepackage{tikz}      
+  - \usepackage{geometry}   
+  - \usepackage{pdfpages}
+  - \usepackage{background}
+  - \usepackage{lmodern}
+  - \usepackage{fancyhdr}
+  - \pagestyle{fancy}
+  - \fancyhf{}
+  - \fancyfoot{}
+  - \renewcommand{\footrulewidth}{0pt}
+  - \rfoot{\LARGE\thepage}
+  - \fancyfoot[R]{\hspace{0cm}\LARGE\thepage}  
+  - \setlength{\footskip}{1.5cm} 
+  - \renewcommand{\headrulewidth}{0pt}
+  - \renewcommand{\familydefault}{\sfdefault}
+  - \renewcommand{\contentsname}{Sommaire}
+  - \usepackage{titlesec}   
+  - \titleformat{\section}[block]{\Huge\bfseries}{\thesection}{1em}{} 
+  - \titleformat{\subsection}[block]{\Large\bfseries}{\thesubsection}{1em}{}  
+  - \titleformat{\subsubsection}[block]{\large\bfseries}{\thesubsubsection}{1em}{}  
+---
+
+\begin{titlepage}
+    \begin{tikzpicture}[remember picture, overlay]
+        \node[anchor=north west, inner sep=0] at (current page.north west)
+        {\includegraphics[width=\paperwidth, height=\paperheight]{PagedegardeClassif.pdf}};
+    \end{tikzpicture}
+\end{titlepage}
+
+
+\thispagestyle{empty}
+
+\newpage
+\setcounter{page}{2}
+
+
+\backgroundsetup{
+  scale=1,
+  opacity=1,   
+  position=current page.center,
+  angle=0,
+  vshift=0cm,
+  hshift=0cm,
+  contents={\includegraphics[width=\paperwidth,height=\paperheight]{PagesClassif4_flat.png}}
+}
+
+\renewcommand{\contentsname}{Sommaire}
+\tableofcontents
+\newpage
+
+
+
+```{r setup, include=FALSE}
+#| echo: false
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, comment = FALSE)
+
+library(doParallel)
+library(ggplot2)
+library(dplyr)
+library(kableExtra)
+library(janitor)
+library(tidymodels)
+library(MASS)
+library(ISLR)
+library(discrim)
+library(pROC)
+library(PRROC)
+library(httpgd)
+library(randomForest)
+library(styler)
+library(rlang)
+library(themis)
+library(recipes)
+library(modeldata)
+library(factoextra)
+library(FactoMineR)
+library(vip)
+library(here)
+library(ranger)
+library(kknn)
+library(AER)
+library(future)
+library(tinytex)
+library(xgboost)
+library(gridExtra)
+
+data("ResumeNames")
+dt <- ResumeNames
+```
+
+```{r}
+dt<-dt[,-1]
+```
+
+```{r}
+dt$call <- ifelse(dt$call == "yes", 1, 0)
+dt$call<-factor(dt$call)
+
+dt$minimum<-as.character(dt$minimum)
+dt$minimum[dt$minimum == "none"] <- 0
+dt$minimum[dt$minimum == "some"] <- 1.5
+
+dt$minimum<-as.numeric(dt$minimum)
+```
+
+
+```{r}
+col_princ <-    "cornflowerblue"
+col_comp <- "#19FFFF"
+backg <- "white"
+col_titre <- "black"
+col_ligne <- "black"
+palette <- c("#FFFF19", "#19FFFF", "#FF19FF")
+
+mon_theme <- theme(
+    plot.title = element_text(
+        color = col_titre,
+        hjust = 0.5,
+        face = "bold.italic"
+    ),
+    plot.subtitle = element_text(
+        color = col_ligne,
+        hjust = 0.5,
+        face = "bold.italic"
+    ),
+    panel.background = element_rect(fill = NA, color = NA),
+    plot.background = element_rect(fill = NA, color = NA),
+    legend.position = "right",
+    legend.background = element_rect(fill = NA, color = NA),
+    axis.title.x = element_text(
+        color = col_titre,
+        face = "bold.italic", hjust = 0.5
+    ),
+    axis.title.y = element_text(
+        color = col_titre,
+        face = "bold.italic", hjust = 0.5
+    ),
+    axis.text.x = element_text(
+        color = col_titre,
+        face = "italic"
+    ),
+    axis.text.y = element_text(
+        color = col_titre,
+        face = "italic"
+    ),
+    legend.text = element_text(
+        color = col_titre,
+        face = "italic"
+    ),
+    legend.title = element_text(
+        color = col_titre, hjust = 0.5,
+        face = "bold.italic"
+    ),
+    axis.ticks = element_line(color = col_ligne),
+    panel.grid.major = element_line(color = "gray", linetype = "dashed"),
+    panel.grid.minor = element_line(color = "lightgray", linetype = "dotted"),
+    legend.box.background = element_rect(fill = NA, color = NA),
+    legend.key = element_rect(fill = NA)
+)
+
+theme_couleur <- c("0" = "orchid4",  # Rouge vif
+                   "1" = "plum")  # Vert vif
+```
+
+
+
+```{r}
+carre_ggplot <- function() {
+  return(list(
+    geom_segment(aes(x = 0, xend = 1, y = 0, yend = 0), color = "black", linewidth = 0.2),
+    geom_segment(aes(x = 1, xend = 1, y = 0, yend = 1), color = "black", linewidth = 0.2),
+    geom_segment(aes(x = 1, xend = 0, y = 1, yend = 1), color = "black", linewidth = 0.2),
+    geom_segment(aes(x = 0, xend = 0, y = 1, yend = 0), color = "black", linewidth = 0.2)
+  ))
+}
+
+
+tableau_html <- function(
+    x,
+    titre = NULL,
+    digit = 4,
+    align = "c",
+    escape = TRUE,
+    format = "html",
+    style_police = "Roboto",
+    col.names = colnames(x),
+    row.names = TRUE,
+    zoom = 1,
+    small = FALSE,
+    ...) {
+  table <- x |>
+    kable(
+      caption = titre,
+      align = align,
+      format = format,
+      digits = digit,
+      escape = escape,
+      col.names = col.names,
+      row.names = row.names,
+      ...
+    )
+
+  if (small) {
+    table <- table |>
+      kable_styling(
+        full_width = FALSE,
+        latex_options = c("hold_position", "scale_down", "longtable")
+      )
+  }
+
+  table <- table |>
+    kable_material(
+      lightable_options = c("striped", "hover"),
+      html_font = style_police,
+      ...
+    )
+
+  return(table)
+}
+
+
+
+Collecte_mesure <- function(mat_conf, mat_conf_train, roc) {
+  precision <- mat_conf[2, 2] / (mat_conf[1, 2] + mat_conf[2, 2])
+
+  specificite <- mat_conf[1, 1] / (mat_conf[1, 1] + mat_conf[1, 2])
+
+  err_esp_1 <- 1 - specificite
+
+  sensibilite <- mat_conf[2, 2] / (mat_conf[2, 2] + mat_conf[2, 1])
+
+  err_esp_2 <- 1 - sensibilite
+
+  score_F1 <- 2 * (precision * sensibilite) / (precision + sensibilite)
+
+  taux_err_test <- (mat_conf[1, 2] + mat_conf[2, 1]) / (mat_conf[1, 1] + mat_conf[1, 2] + mat_conf[2, 1] + mat_conf[2, 2])
+
+  taux_err_train <- (mat_conf_train[1, 2] + mat_conf_train[2, 1]) / (mat_conf_train[1, 1] + mat_conf_train[1, 2] + mat_conf_train[2, 1] + mat_conf_train[2, 2])
+
+  taux_correcte <- (mat_conf[1, 1] + mat_conf[2, 2]) / (mat_conf[1, 1] + mat_conf[1, 2] + mat_conf[2, 1] + mat_conf[2, 2])
+
+  auc <- auc(roc)
+
+  return(rbind(
+    `Précision` = precision,
+    `Spécificité` = specificite,
+    `Taux de faux positifs` = err_esp_1,
+    `Taux de faux négatifs` = err_esp_2,
+    `Sensibilité` = sensibilite,
+    `F-score` = score_F1,
+    `Taux d'erreur en test` = taux_err_test,
+    `Taux d'erreur en entraînement` = taux_err_train,
+    AUC = auc,
+    Accuracy = taux_correcte
+  ))
+}
+
+
+matrice_confusion <- function(fit, titre = NULL){
+  conf_test <- data.frame(
+    Réalité = call_test$call,
+    Prédiction = fit$.predictions[[1]]$.pred_class
+  ) |> table() |> addmargins()
+  
+  colnames(conf_test)[3] <- "Total"
+  rownames(conf_test)[3] <- "Total"
+  
+  df_conf_test <- data.frame(
+    " " = c(rep("Réalité", 2)," "),
+    " " = c(0, 1, "Total"),
+    "0" = c(conf_test[1,1],conf_test[2,1],conf_test[3,1]),
+    "1" = c(conf_test[1,2],conf_test[2,2],conf_test[3,2]),
+    Total = c(conf_test[1,3],conf_test[2,3],conf_test[3,3])
+  )
+  
+  colnames(df_conf_test) <- c(" ", " ", 0, 1, "Total")
+  
+  df_conf_test |> 
+    kable(align = "c", caption = titre, format = "markdown") |> 
+    kable_paper(full_width = FALSE) |>
+    column_spec(c(1,2,5), bold = TRUE) |>
+    row_spec(c(0,3), bold = TRUE) |>
+    row_spec(0, color = "brown") |> 
+    column_spec(2, color = "brown") |> 
+    collapse_rows(columns = 1:2,valign = "top") |> 
+    add_header_above(c(" " = 2, "Prédiction" = 2, " " = 1), 
+                     bold = TRUE, 
+                     line = F) 
+  
+}
+
+
+
+Courbe_roc <- function(roc, titre = NULL) {
+  roc |> ggroc(legacy.axes = TRUE, colour = "darkgoldenrod", size = 1) +
+    geom_segment(aes(x = 0, xend = 1, y = 0, yend = 1), color = "red", linetype = "dotted") +
+    labs(title = titre,
+         x = "1 - Spécificité",
+         y = "Sensibilité") +
+    mon_theme
+}
+
+
+
+
+perf_modele <- function(mat_conf_test, mat_conf_train, roc_test, titre = NULL, format = "markdown") {
+  result_test <- Collecte_mesure(mat_conf_test, mat_conf_train, roc_test) |> round(4)
+
+  result_test <- sprintf("%.2f%%", result_test * 100)
+
+tbl <-   tibble(
+    `Précision` = result_test[1],
+    `Spécificité` = result_test[2],
+    `Taux de faux positifis` = result_test[3],
+    `Taux de faux négatifs` = result_test[4],
+    `Sensibilité` = result_test[5],
+    `F-score` = result_test[6],
+    `Taux d'erreur test` = result_test[7],
+    `Taux d'erreur train` = result_test[8],
+    `AUC` = result_test[9],
+    `Accuracy` = result_test[10]
+  ) |>
+    t() 
+
+tbl |> 
+    tableau_html(row.names = TRUE, titre = titre, format = format) |>
+    column_spec(1, bold = TRUE, italic = TRUE) |> 
+    footnote(
+      number = c(
+        "Taux de faux positifs : Proportion des candidats prédits comme rappelés alors qu'ils ne l'ont pas été.",
+        "Taux de faux négatifs : Proportion des candidats prédits comme non rappelés alors qu'ils l'ont été."
+           )) |> 
+    column_spec(1, bold = TRUE) 
+  }
+
+
+
+
+affichage_transparent <- function(
+    plot = plot,
+    height = height,
+    scale = scale,
+    width = 6) {
+  plot_name <- deparse(substitute(plot))
+  path <- here::here("image", paste0(plot_name, ".png"))
+
+  suppressMessages(
+    ggplot2::ggsave(
+      plot = plot,
+      path = dirname(path),
+      filename = basename(path),
+      bg = "transparent",
+      height = height,
+      scale = scale,
+      dpi = 300,
+      units = "in",
+      width = width
+    )
+  )
+
+  knitr::include_graphics(path)
+}
+```
+
+
+
+
+\newpage
+
+\renewcommand{\contentsname}{Table des matières} 
+
+\newpage
+
+#  Introduction
+
+Dans un marché de l'emploi de plus en plus compétitif, le processus de recrutement constitue un enjeu majeur pour les entreprises. La sélection des candidats repose sur de nombreux critères, souvent subjectifs, qui influencent leur probabilité d'être rappelés après l'envoi de leur CV. Comprendre ces critères et prédire cette sélection peut permettre d’optimiser les processus de recrutement et d’assurer une meilleure adéquation entre les candidats et les attentes des employeurs.
+
+L’objectif de ce projet est de développer un modèle capable de prédire si un candidat sera rappelé ou non en fonction des informations contenues dans son CV. Pour cela, nous testerons et comparerons divers modèles de classification supervisée, tels que l’analyse discriminante linéaire (LDA), l’analyse discriminante quadratique (QDA), les arbres de décision et plusieurs autres algorithmes. L'enjeu principal sera d’identifier le modèle offrant la meilleure performance prédictive, afin de mieux comprendre les éléments clés qui influencent la décision de rappel des candidats.
+
+Pour mener à bien cette étude, nous utilisons une base de données contenant 4 870 CV fictifs envoyés en réponse à des offres d’emploi à Chicago et Boston en 2001. Cette base de données comporte 26 variables, permettant d’examiner l’influence des informations individuelles et des compétences perçues sur les chances d’être rappelé par un recruteur. L'absence de valeurs manquantes garantit une exploitation optimale des données, facilitant ainsi l'application et l'évaluation des différents modèles de classification.
+
+\vspace{12pt}
+
+```{r}
+description <- tibble(
+  `Nom de la variable` = c(
+    "gender",
+    "ethnicity",
+    "quality",
+    "call",
+    "city",
+    "jobs",
+    "experience",
+    "honors",
+    "volunteer",
+    "military",
+    "holes",
+    "school",
+    "email",
+    "computer",
+    "special",
+    "college",
+    "minimum",
+    "equal",
+    "wanted",
+    "requirements",
+    "reqexp",
+    "reqcomm",
+    "reqeduc",
+    "reqcomp",
+    "reqorg",
+    "industry"
+  ),
+  Type = c(
+    "factor",
+    "factor",
+    "factor",
+    "factor",
+    "factor",
+    "integer",
+    "integer",
+    "factor",
+    "factor",
+    "factor",
+    "factor",
+    "factor",
+    "factor",
+    "factor",
+    "factor",
+    "factor",
+    "numeric",
+    "factor",
+    "factor",
+    "factor",
+    "factor",
+    "factor",
+    "factor",
+    "factor",
+    "factor",
+    "factor"
+  ),
+  Description = c(
+    "Sexe du candidat",
+    "Origine ethnique (prénom à consonance caucasienne ou afro-américaine)",
+    "Qualité du CV",
+    "Le candidat a-t-il été rappelé (1:Oui, 0:Non)",
+    "Ville concernée (Boston ou Chicago)",
+    "Nombre d’emplois répertoriés sur le CV",
+    "Nombre d’années d’expérience de travail sur le CV",
+    "Le CV mentionnait-il des distinctions ?",
+    "Le CV mentionnait-il une expérience de bénévolat ?",
+    "Le candidat a-t-il une expérience militaire ?",
+    "Le CV comporte-t-il des périodes d'inactivité ?",
+    "Le CV mentionne-t-il une expérience professionnelle pendant les études ?",
+    "L’adresse e-mail figurait-elle sur le CV du candidat ?",
+    "Le CV mentionne-t-il des compétences en informatique ?",
+    "Le CV mentionne-t-il des compétences particulières ?",
+    "Le candidat a-t-il un diplôme universitaire ou plus ?",
+    "Expérience minimale exigée de l’employeur",
+    "L’employeur est-il pour l’égalité des chances en matière d’emploi ?",
+    "Type de poste recherché par l'employeur",
+    "L’annonce mentionne-t-elle des exigences pour le poste ?",
+    "L’annonce mentionne-t-elle des exigences d’expérience ?",
+    "L’annonce mentionne-t-elle des compétences en communication ?",
+    "L’annonce mentionne-t-elle des exigences en matière de diplôme ?",
+    "L’annonce mentionne-t-elle des compétences informatiques requises ?",
+    "L’annonce mentionne-t-elle des compétences organisationnelles requises ?",
+    "Secteur d'activité de l'employeur"
+  )
+) |> 
+  group_by(Type) |> 
+  arrange(Type)
+
+```
+
+```{r}
+tableau_html <- function(
+    x,
+    titre = NULL,
+    digit = 4,
+    align = "c",
+    escape = TRUE,
+    format = "html",
+    style_police = "Roboto",
+    col.names = colnames(x),
+    row.names = TRUE,
+    zoom = 1,
+    small = FALSE,
+    ...) {
+  table <- x |>
+    kable(
+      caption = titre,
+      align = align,
+      format = format,
+      digits = digit,
+      escape = escape,
+      col.names = col.names,
+      row.names = row.names,
+      ...
+    )
+
+  if (small) {
+    table <- table |>
+      kable_styling(
+        full_width = FALSE,
+        latex_options = c("hold_position", "scale_down", "longtable")
+      )
+  }
+
+  table <- table |>
+    kable_material(
+      lightable_options = c("striped", "hover"),
+      html_font = style_police,
+      ...
+    )
+return(table)
+}
+```
+
+```{r}
+library(DT)
+description |> tableau_html(format = "markdown", align = "l") |>
+  column_spec(1, bold = TRUE) |> 
+  row_spec(0, bold = TRUE) 
+```
+
+Avant de construire les modèles prédictifs, une exploration des données s’impose afin d’en cerner les spécificités et guider les choix méthodologiques à venir.
+
+# Exploration des données 
+
+## Visulisation de la fréquence d’appel des candidats rappelés et non rappelés
+
+```{r, fig.width=5.5, fig.height=3, fig.align = 'center'}
+tab_call <- dt$call |>
+  table() |>
+  prop.table() |>
+  round(4)
+
+data_call <- data.frame(tab_call) |>
+  rename(
+    call = Var1,
+    Proportion = Freq
+  )
+
+
+graph_call <- data_call |>
+  ggplot(aes(x = call, y = Proportion, fill = call)) +
+  geom_col() +
+  geom_text(aes(label = scales::percent(Proportion)),
+    position = position_stack(vjust = 0.5)
+  ) +
+  labs(
+    title = "",
+    x = "Call",
+    y = ""
+  ) +
+  mon_theme +
+  scale_fill_manual(values = theme_couleur)
+
+graph_call
+```
+
+
+On observe un déséquilibre marqué dans la distribution de la variable à prédire call, avec 92 % des candidats non rappelés contre seulement 8 % qui l'ont été. 
+
+Cette disparité peut poser problème lors de l'application de méthodes de prédiction, car elle favorise la classe majoritaire, augmentant ainsi le risque de sur-ajustement. En conséquence, le modèle pourrait avoir des performances réduites pour identifier correctement la classe minoritaire. 
+
+Il est donc crucial d'adopter des stratégies adaptées, comme le rééquilibrage des classes, afin d'améliorer la fiabilité des prédictions.
+
+
+
+
+## Analyse des variables qualitatives
+
+### Proportions
+
+Afin de déterminer la relation entre nos variables qualitatives et la variable à prédire "call" (la probabilité d'être rappelé),  nous analyserons les proportions de rappel pour chacune de leurs modalités. Les graphiques suivants illustrent cette analyse en montrant les proportions de rappel en fonction de différentes informations issues du CV des candidats, telles que le genre, l’origine ethnique ou la qualité du CV, ainsi que les exigences du poste auquel le candidat a postulé.
+
+Ces visualisations permettent d'observer comment chaque modalité influence la probabilité d'être rappelé (Call), offrant ainsi une compréhension plus claire des facteurs liés au rappel des candidats.
+
+
+
+```{r}
+gender <- as.data.frame.matrix(table(dt$call, dt$gender))
+
+gender <- gender |> 
+  tibble::rownames_to_column(var = "call")
+prop_gender <- gender |> 
+  pivot_longer(cols = -call, names_to = "gender", values_to = "Effectif")
+
+a <- ggplot(data = prop_gender, aes(x = gender, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") + 
+  theme_minimal() + 
+  labs(
+    title = "Impact du genre sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) + 
+  guides(fill = guide_legend(title = "Call"))
+```
+
+```{r}
+ethnicity_data <- as.data.frame.matrix(table(dt$call, dt$ethnicity))
+
+ethnicity_data <- ethnicity_data |> 
+  tibble::rownames_to_column(var = "call")
+
+prop_ethnicity <- ethnicity_data |> 
+  pivot_longer(cols = -call, names_to = "ethnicity", values_to = "Effectif")
+
+b <- ggplot(data = prop_ethnicity, aes(x = ethnicity, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") + 
+  theme_minimal() + 
+  labs(
+    title = "Impact de l'ethnicité sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) + 
+  guides(fill = guide_legend(title = "Call"))
+```
+
+```{r}
+quality_data <- as.data.frame.matrix(table(dt$call, dt$quality))
+
+quality_data <- quality_data |> 
+  tibble::rownames_to_column(var = "call")
+
+prop_quality <- quality_data |> 
+  pivot_longer(cols = -call, names_to = "quality", values_to = "Effectif")
+
+theme_couleur <- c("0" = "orchid4", "1" = "plum")  
+
+c <- ggplot(data = prop_quality, aes(x = quality, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") + 
+  theme_minimal() + 
+  labs(
+    title = "Impact de la qualité sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) + 
+  guides(fill = guide_legend(title = "Call"))
+```
+
+```{r}
+city_data <- as.data.frame.matrix(table(dt$call, dt$city))
+
+city_data <- city_data |> 
+  tibble::rownames_to_column(var = "call")
+
+prop_city <- city_data |> 
+  pivot_longer(cols = -call, names_to = "city", values_to = "Effectif")
+
+
+d <- ggplot(data = prop_city, aes(x = city, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") + 
+  theme_minimal() + 
+  labs(
+    title = "Impact de la ville sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) + 
+  guides(fill = guide_legend(title = "Call")) 
+```
+
+```{r}
+honors_data <- as.data.frame.matrix(table(dt$call, dt$honors))
+
+honors_data <- honors_data |> 
+  tibble::rownames_to_column(var = "call")
+
+prop_honors <- honors_data |> 
+  pivot_longer(cols = -call, names_to = "honors", values_to = "Effectif")
+
+e <- ggplot(data = prop_honors, aes(x = honors, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") + 
+  theme_minimal() + 
+  labs(
+    title = "Impact des honneurs sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) + 
+  guides(fill = guide_legend(title = "Call"))
+```
+
+```{r}
+volunteer_data <- as.data.frame.matrix(table(dt$call, dt$volunteer))
+
+volunteer_data <- volunteer_data |> 
+  tibble::rownames_to_column(var = "call")
+
+prop_volunteer <- volunteer_data |> 
+  pivot_longer(cols = -call, names_to = "volunteer", values_to = "Effectif")
+
+f <- ggplot(data = prop_volunteer, aes(x = volunteer, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") + 
+  theme_minimal() + 
+  labs(
+    title = "Impact du bénévolat sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) + 
+  guides(fill = guide_legend(title = "Call")) 
+```
+
+```{r}
+military_data <- as.data.frame.matrix(table(dt$call, dt$military))
+
+military_data <- military_data |> 
+  tibble::rownames_to_column(var = "call")
+
+prop_military <- military_data |> 
+  pivot_longer(cols = -call, names_to = "military", values_to = "Effectif")
+
+
+g <- ggplot(data = prop_military, aes(x = military, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") + 
+  theme_minimal() + 
+  labs(
+    title = "Impact de military sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) +  
+  guides(fill = guide_legend(title = "Call")) 
+```
+
+```{r}
+holes_data <- as.data.frame.matrix(table(dt$call, dt$holes))
+
+holes_data <- holes_data |> 
+  tibble::rownames_to_column(var = "call")
+
+prop_holes <- holes_data |> 
+  pivot_longer(cols = -call, names_to = "holes", values_to = "Effectif")
+
+h <- ggplot(data = prop_holes, aes(x = holes, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") + 
+  theme_minimal() + 
+  labs(
+    title = "Impact des holes sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) + 
+  guides(fill = guide_legend(title = "Call"))
+```
+
+```{r}
+school_data <- as.data.frame.matrix(table(dt$call, dt$school))
+
+school_data <- school_data |> 
+  tibble::rownames_to_column(var = "call")
+
+prop_school <- school_data |> 
+  pivot_longer(cols = -call, names_to = "school", values_to = "Effectif")
+
+i <- ggplot(data = prop_school, aes(x = school, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") + 
+  theme_minimal() + 
+  labs(
+    title = "Impact de school sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) +  
+  guides(fill = guide_legend(title = "Call")) 
+```
+
+```{r}
+email_data <- as.data.frame.matrix(table(dt$call, dt$email))
+
+email_data <- email_data |> 
+  tibble::rownames_to_column(var = "call")
+
+prop_email <- email_data |> 
+  pivot_longer(cols = -call, names_to = "email", values_to = "Effectif")
+
+j <- ggplot(data = prop_email, aes(x = email, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") + 
+  theme_minimal() + 
+  labs(
+    title = "Impact de l'email sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) +  
+  guides(fill = guide_legend(title = "Call")) 
+```
+
+```{r}
+computer_data <- as.data.frame.matrix(table(dt$call, dt$computer))
+
+computer_data <- computer_data |> 
+  tibble::rownames_to_column(var = "call")
+
+prop_computer <- computer_data |> 
+  pivot_longer(cols = -call, names_to = "computer", values_to = "Effectif")
+
+k <- ggplot(data = prop_computer, aes(x = computer, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") + 
+  theme_minimal() + 
+  labs(
+    title = "Impact de computer sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) + 
+  guides(fill = guide_legend(title = "Call"))
+```
+
+```{r}
+special_data <- as.data.frame.matrix(table(dt$call, dt$special))
+
+special_data <- special_data |> 
+  tibble::rownames_to_column(var = "call")
+
+prop_special <- special_data |> 
+  pivot_longer(cols = -call, names_to = "special", values_to = "Effectif")
+
+l <- ggplot(data = prop_special, aes(x = special, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") + 
+  theme_minimal() + 
+  labs(
+    title = "Impact de special sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) +  
+  guides(fill = guide_legend(title = "Call")) 
+```
+
+```{r}
+college_data <- as.data.frame.matrix(table(dt$call, dt$college))
+
+college_data <- college_data |> 
+  tibble::rownames_to_column(var = "call")
+
+prop_college <- college_data |> 
+  pivot_longer(cols = -call, names_to = "college", values_to = "Effectif")
+
+n <- ggplot(data = prop_college, aes(x = college, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") + 
+  theme_minimal() + 
+  labs(
+    title = "Impact du college sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) + 
+  guides(fill = guide_legend(title = "Call")) 
+```
+
+```{r}
+equal_data <- as.data.frame.matrix(table(dt$call, dt$equal))
+
+equal_data <- equal_data |> 
+  tibble::rownames_to_column(var = "call")
+
+prop_equal <- equal_data |> 
+  pivot_longer(cols = -call, names_to = "equal", values_to = "Effectif")
+
+m <- ggplot(data = prop_equal, aes(x = equal, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") + 
+  theme_minimal() + 
+  labs(
+    title = "Impact de equal sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) +
+  guides(fill = guide_legend(title = "Call")) 
+```
+
+```{r}
+wanted_data <- as.data.frame.matrix(table(dt$call, dt$wanted))
+
+wanted_data <- wanted_data |> 
+  tibble::rownames_to_column(var = "call")
+
+prop_wanted <- wanted_data |> 
+  pivot_longer(cols = -call, names_to = "wanted", values_to = "Effectif")
+
+o <- ggplot(data = prop_wanted, aes(x = wanted, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") + 
+  coord_flip() + 
+  theme_minimal() + 
+  labs(
+    title = "Impact de wanted sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) +  
+  guides(fill = guide_legend(title = "Call")) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  
+```
+
+```{r}
+requirements_data <- as.data.frame.matrix(table(dt$call, dt$requirements))
+
+requirements_data <- requirements_data |> 
+  tibble::rownames_to_column(var = "call")
+
+prop_requirements <- requirements_data |> 
+  pivot_longer(cols = -call, names_to = "requirements", values_to = "Effectif")
+
+p <- ggplot(data = prop_requirements, aes(x = requirements, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") + 
+  theme_minimal() + 
+  labs(
+    title = "Impact de requirements sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) +  
+  guides(fill = guide_legend(title = "Call")) 
+```
+
+```{r}
+reqexp_data <- as.data.frame.matrix(table(dt$call, dt$reqexp))
+
+reqexp_data <- reqexp_data |> 
+  tibble::rownames_to_column(var = "call")
+
+prop_reqexp <- reqexp_data |> 
+  pivot_longer(cols = -call, names_to = "reqexp", values_to = "Effectif")
+
+q <- ggplot(data = prop_reqexp, aes(x = reqexp, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") + 
+  theme_minimal() + 
+  labs(
+    title = "Impact de reqexp sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) +  
+  guides(fill = guide_legend(title = "Call")) 
+```
+
+```{r}
+reqcomm_data <- as.data.frame.matrix(table(dt$call, dt$reqcomm))
+
+reqcomm_data <- reqcomm_data |> 
+  tibble::rownames_to_column(var = "call")
+
+prop_reqcomm <- reqcomm_data |> 
+  pivot_longer(cols = -call, names_to = "reqcomm", values_to = "Effectif")
+
+r <- ggplot(data = prop_reqcomm, aes(x = reqcomm, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") + 
+  theme_minimal() + 
+  labs(
+    title = "Impact de reqcomm sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) +  
+  guides(fill = guide_legend(title = "Call")) 
+```
+
+```{r}
+reqeduc_data <- as.data.frame.matrix(table(dt$call, dt$reqeduc))
+
+reqeduc_data <- reqeduc_data |> 
+  tibble::rownames_to_column(var = "call")
+
+prop_reqeduc <- reqeduc_data |> 
+  pivot_longer(cols = -call, names_to = "reqeduc", values_to = "Effectif")
+
+s <- ggplot(data = prop_reqeduc, aes(x = reqeduc, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") + 
+  theme_minimal() + 
+  labs(
+    title = "Impact de reqeduc sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) + 
+  guides(fill = guide_legend(title = "Call")) 
+```
+
+
+```{r}
+reqcomp_data <- as.data.frame.matrix(table(dt$call, dt$reqcomp))
+
+reqcomp_data <- reqcomp_data |> 
+  tibble::rownames_to_column(var = "call")
+
+prop_reqcomp <- reqcomp_data |> 
+  pivot_longer(cols = -call, names_to = "reqcomp", values_to = "Effectif")
+
+t <- ggplot(data = prop_reqcomp, aes(x = reqcomp, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") + 
+  theme_minimal() + 
+  labs(
+    title = "Impact de reqcomp sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) +  
+  guides(fill = guide_legend(title = "Call")) 
+```
+
+
+```{r}
+reqorg_data <- as.data.frame.matrix(table(dt$call, dt$reqorg))
+
+reqorg_data <- reqorg_data |> 
+  tibble::rownames_to_column(var = "call")
+
+prop_reqorg <- reqorg_data |> 
+  pivot_longer(cols = -call, names_to = "reqorg", values_to = "Effectif")
+
+u <- ggplot(data = prop_reqorg, aes(x = reqorg, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") + 
+  theme_minimal() + 
+  labs(
+    title = "Impact de reqorg sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) +  
+  guides(fill = guide_legend(title = "Call")) 
+```
+
+```{r}
+industry_data <- as.data.frame.matrix(table(dt$call, dt$industry))
+
+industry_data <- industry_data |> 
+  tibble::rownames_to_column(var = "call")
+
+prop_industry <- industry_data |> 
+  pivot_longer(cols = -call, names_to = "industry", values_to = "Effectif")
+
+v <- ggplot(data = prop_industry, aes(x = industry, y = Effectif, fill = call)) + 
+  geom_bar(stat = "identity", position = "fill") +
+  coord_flip() + 
+  theme_minimal() + 
+  labs(
+    title = "Impact de industry sur call",
+    y = "Proportion",
+    x = ""
+  ) + 
+  scale_fill_manual(values = theme_couleur) +  
+  guides(fill = guide_legend(title = "Call")) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  
+```
+
+\vspace{12pt}
+
+```{r, fig.height=1.5}
+grid.arrange(a, b, ncol = 2)  
+```
+
+```{r, fig.height=4.29}
+grid.arrange(c, d, e, f, g, h, ncol = 2)  
+```
+
+```{r, fig.height=4.29}
+grid.arrange(i, j, k,l, m, n, ncol = 2)  
+```
+
+```{r, fig.height=1.5}
+grid.arrange(p, q, ncol = 2)  
+```
+
+```{r, fig.height=3}
+grid.arrange(r, s, t, u, ncol = 2)  
+```
+
+```{r, fig.height=4}
+grid.arrange(v, o, nrow = 2)  
+```
+
+\vspace{12pt}
+
+Les graphiques ci-dessus mettent en évidence le déséquilibre de classe entre les candidats rappelés et ceux qui ne l'ont pas été, ce qui complique l’interprétation des proportions de call pour chaque modalité de nos variables qualitatives. 
+
+Dans l'ensemble, la plupart des variables ne présentent quasiment aucune différence visible entre les candidats rappelés et ceux qui ne l'ont pas été.  On observe néanmoins de légères différences pour les variables "honors", "industry" et "wanted". Les candidats avec des distinctions (honors) semblent légèrement plus souvent rappelés. Les employeurs dans les secteurs d'activité "transport/communication" (industry) rappellent davantage de candidats que ceux d'autres secteurs. Enfin, les candidats postulant pour les postes "office support" (wanted) sont plus fréquemment rappelés que les autres, probablement en raison d'une demande plus forte ou de critères de sélection moins stricts dans ce domaine.
+
+
+
+### Tests du  $\chi^2$
+
+Afin de compléter l’analyse des proportions, nous allons appliquer un test du  $\chi^2$ pour chacune des variables qualitatives pour évaluer si certaines sont statistiquement liées à la variable call, c’est-à-dire si des informations présentes dans le CV influencent la probabilité d’être rappelé. Les hypothèses testées sont les suivantes :
+
+\[
+\left\{
+  \begin{array}{l}
+    H_0 : \text{les variables sont indépendantes} \\
+    H_1 : \text{les variables sont dépendantes}
+  \end{array}
+\right.
+\]
+
+Ces tests nous permettront de déterminer si les différences observées dans les proportions sont statistiquement significatives, ou simplement dues au hasard.
+
+```{r}
+chi_gender <- chisq.test(dt$gender, dt$call)
+chi_ethnicity <- chisq.test(dt$ethnicity, dt$call)
+chi_quality <- chisq.test(dt$quality, dt$call)
+chi_city <- chisq.test(dt$city, dt$call)
+chi_honors <- chisq.test(dt$honors, dt$call)
+chi_volunteer <- chisq.test(dt$volunteer, dt$call)
+chi_military <- chisq.test(dt$military, dt$call)
+chi_holes <- chisq.test(dt$holes, dt$call)
+chi_school <- chisq.test(dt$school, dt$call)
+chi_email <- chisq.test(dt$email, dt$call)
+chi_computer <- chisq.test(dt$computer, dt$call)
+chi_special <- chisq.test(dt$special, dt$call)
+chi_college <- chisq.test(dt$college, dt$call)
+chi_equal <- chisq.test(dt$equal, dt$call)
+chi_wanted <- chisq.test(dt$wanted, dt$call)
+chi_requirements <- chisq.test(dt$requirements, dt$call)
+chi_reqexp <- chisq.test(dt$reqexp, dt$call)
+chi_reqcomm <- chisq.test(dt$reqcomm, dt$call)
+chi_reqeduc <- chisq.test(dt$reqeduc, dt$call)
+chi_reqcomp <- chisq.test(dt$reqcomp, dt$call)
+chi_reqorg <- chisq.test(dt$reqorg, dt$call)
+chi_industry <- chisq.test(dt$industry, dt$call)
+
+tab_chi <- rbind(
+  cbind(formatC(chi_gender$statistic, format = "e", digits = 2), formatC(chi_gender$p.value, format = "e", digits = 2)),
+  cbind(formatC(chi_ethnicity$statistic, format = "e", digits = 2), formatC(chi_ethnicity$p.value, format = "e", digits = 2)),
+  cbind(formatC(chi_quality$statistic, format = "e", digits = 2), formatC(chi_quality$p.value, format = "e", digits = 2)),
+  cbind(formatC(chi_city$statistic, format = "e", digits = 2), formatC(chi_city$p.value, format = "e", digits = 2)),
+  cbind(formatC(chi_honors$statistic, format = "e", digits = 2), formatC(chi_honors$p.value, format = "e", digits = 2)),
+  cbind(formatC(chi_volunteer$statistic, format = "e", digits = 2), formatC(chi_volunteer$p.value, format = "e", digits = 2)),
+  cbind(formatC(chi_military$statistic, format = "e", digits = 2), formatC(chi_military$p.value, format = "e", digits = 2)),
+  cbind(formatC(chi_holes$statistic, format = "e", digits = 2), formatC(chi_holes$p.value, format = "e", digits = 2)),
+  cbind(formatC(chi_school$statistic, format = "e", digits = 2), formatC(chi_school$p.value, format = "e", digits = 2)),
+  cbind(formatC(chi_email$statistic, format = "e", digits = 2), formatC(chi_email$p.value, format = "e", digits = 2)),
+  cbind(formatC(chi_computer$statistic, format = "e", digits = 2), formatC(chi_computer$p.value, format = "e", digits = 2)),
+  cbind(formatC(chi_special$statistic, format = "e", digits = 2), formatC(chi_special$p.value, format = "e", digits = 2)),
+  cbind(formatC(chi_college$statistic, format = "e", digits = 2), formatC(chi_college$p.value, format = "e", digits = 2)),
+  cbind(formatC(chi_equal$statistic, format = "e", digits = 2), formatC(chi_equal$p.value, format = "e", digits = 2)),
+  cbind(formatC(chi_wanted$statistic, format = "e", digits = 2), formatC(chi_wanted$p.value, format = "e", digits = 2)),
+  cbind(formatC(chi_requirements$statistic, format = "e", digits = 2), formatC(chi_requirements$p.value, format = "e", digits = 2)),
+  cbind(formatC(chi_reqexp$statistic, format = "e", digits = 2), formatC(chi_reqexp$p.value, format = "e", digits = 2)),
+  cbind(formatC(chi_reqcomm$statistic, format = "e", digits = 2), formatC(chi_reqcomm$p.value, format = "e", digits = 2)),
+  cbind(formatC(chi_reqeduc$statistic, format = "e", digits = 2), formatC(chi_reqeduc$p.value, format = "e", digits = 2)),
+  cbind(formatC(chi_reqcomp$statistic, format = "e", digits = 2), formatC(chi_reqcomp$p.value, format = "e", digits = 2)),
+  cbind(formatC(chi_reqorg$statistic, format = "e", digits = 2), formatC(chi_reqorg$p.value, format = "e", digits = 2)),
+  cbind(formatC(chi_industry$statistic, format = "e", digits = 2), formatC(chi_industry$p.value, format = "e", digits = 2))
+)
+
+rownames(tab_chi) <- c("Gender", "Ethnicity", "Quality",  "City", "Honors",  "Volunteer", "Military", "Holes", "School", "Email", "Computer", "Special", "College", "Equal", "Wanted", "Requirements", "Reqexp", "Reqcomm", "Reqeduc", "Reqcomp", "Reqorg", "Industry")
+colnames(tab_chi) <- c("t-stat", "p-value")
+
+library(kableExtra)
+
+tab_chi |>
+  tableau_html(row.names = TRUE, format = "markdown", titre = "Résultats des tests") |> 
+  column_spec(1, bold = TRUE) |> 
+  row_spec(0, bold = TRUE)
+```
+
+Les résultats des tests nous révèlent que les variables Ethnicity, City, Honors, Holes, Special, Wanted, Requirements, Reqeduc, Reqorg et Industry sont statistiquement liées à la probabilité d’être rappelé par le recruteur, les p-values associées étant inférieures à 0.05, ce qui n'est pas le cas des autres variables.
+
+Ces résultats confirment nos observations concernant les variables Honors, Wanted et Industry, pour lesquelles des différences visibles dans les proportions de candidats rappelés et non rappelés ont été notées. Par ailleurs, bien que certaines autres variables significatives ne montrent pas de différences évidentes dans les graphiques de proportions, elles sont néanmoins statistiquement liées à la probabilité d'être rappelé, ce qui suggère qu'elles peuvent également jouer un rôle, même minime, dans le processus de sélection des candidats.
+
+
+## Analyse des variables quantitatives
+
+### Tests de Student pour échantillons indépendants
+
+Après avoir analysé les variables qualitatives, nous allons maintenant nous concentrer sur les variables quantitatives. Pour cela, nous allons réaliser des tests de Student. Ces tests nous permettront de vérifier si les moyennes des variables quantitatives sont significativement différentes entre les candidats rappelés et ceux non rappelés, ce qui pourrait indiquer que certaines de ces variables influencent la décision du recruteur de rappeler un candidat.
+
+Voici les hypothèses des tests :
+
+\[
+\begin{cases}
+H_0 : \mu_1 = \mu_2, \text{il n'y a pas de différence significative entre les moyennes des deux groupes} \\
+H_1 : \mu_1 \neq \mu_2, \text{il y a une différence significative entre les moyennes des deux groupes}
+\end{cases}
+\]
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(broom)
+library(purrr)
+library(jtools)
+
+quant <- which(sapply(dt, is.numeric))
+
+ttest_val <- map_dfr(quant, ~ {
+  
+  ttest_result <- t.test(dt[[.x]] ~ dt$call, var.equal = FALSE) %>% tidy()
+  
+  ttest_result %>%
+    mutate(
+      Variable = names(dt)[.x]
+    )
+})
+
+ttest <- data.frame(ttest_val) %>%
+  mutate(
+    Variable = factor(Variable, levels = names(dt)),
+    estimate = round(estimate, 2),
+    estimate1 = round(estimate1, 2),
+    estimate2 = round(estimate2, 2),
+    p.value = formatC(p.value, format = "e", digits = 2),
+    conf.low = round(conf.low, 2),
+    conf.high = round(conf.high, 2)
+  )
+
+ttest %>%
+  dplyr::select(Variable, estimate, estimate1, estimate2, p.value, conf.low, conf.high) %>%
+  rename(
+    `Variable` = Variable,
+    `Estimate` = estimate,
+    `µ1` = estimate1,
+    `µ2` = estimate2,
+    `IC inf` = conf.low,
+    `IC sup` = conf.high,
+    `p-value` = p.value
+  ) %>%
+  tableau_html(titre = "Résultats des tests de Student", format = "markdown", small = TRUE) %>%
+  column_spec(1, bold = TRUE) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(6, color = ifelse(ttest_val[,5] > 0.05, "red", "black"))
+```
+On remarque une différence de moyenne pour la variable Expérience entre le groupe des rappelés et celui des non rappelés. De plus, cette différence est statistiquement significative, car sa p-value est inférieure à 0.05. Cela suggère que l'expérience influence probablement la probabilité d'être rappelé.
+
+Pour les variables Jobs et Minimum, les moyennes des deux groupes sont très proches, et les p-values supérieures à 0.05 indiquent qu'il n'y a pas de différence significative. Ainsi, ces variables ne semblent pas être liées à la probabilité d'être rappelé.
+
+
+### ACP
+
+Nous allons faire une ACP afin de déterminer les corrélations entre nos variables quantitatives et d’identifier d’éventuelles redondances.  
+ 
+```{r}
+set.seed(123)
+
+data_split <- initial_split(dt, prop = 2 / 3, strata = call)
+
+call_train <- training(data_split)
+call_test <- testing(data_split)
+```
+
+
+```{r, fig.align='center', fig.height=3.8, fig.width=7}
+library(factoextra)
+library(FactoMineR)
+
+quanti <- which(sapply(call_train, is.numeric))
+quali <- which(sapply(call_train, is.factor))
+
+res_acp <- PCA(dt, graph = FALSE, quali.sup = quali)
+
+graph_pca_var <- fviz_pca_var(res_acp,
+  col.var = "cos2", col.ind = "cos2",
+  gradient.cols = c("lightgreen", "seagreen"),
+  repel = TRUE,
+  axes = c(1, 2)
+) +
+  mon_theme +
+  labs(
+    title = "Cercle des corrélations",
+    subtitle = "Axes 1 et 2"
+  )+theme(
+  plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm")
+)
+
+print(graph_pca_var)
+```
+
+Nous pouvons observons sur le graphique, que la variable Minimum est bien représentée sur le plan factoriel formé par les axes F1 (43,5%) et F2 (32,9%), comme l’indique son cos² élevé (vert foncée). 
+
+Cette variable contribue principalement à l'axe F2 et partiellement à l'axe F1, jouant un rôle majeur dans l’explication de la variance des données.
+
+On remarque que les variables Experience et Jobs sont relativement proches sur le plan F1, F2 ce qui indique qu'elles sont corrélés bien qu'elles soient moins bien représenté sur ce plan que Minimum. 
+
+Nous utiliserons donc step_corr pour tenter d'atténuer ce problème de colinéarité, qui fera en sorte de sélectionner un groupe de variables dont le coefficient de corrélation maximal n’excédera pas un seuil spécifié, garantissant ainsi une indépendance suffisante entre elles.
+
+
+# Préparation des données 
+
+## Découpage train/test
+
+Nous avons décider de découper notre jeu de données en deux parties : 2/3 des observations seront utilisées pour l’apprentissage et 1/3 pour le test du modèle entrainé
+
+
+```{r}
+set.seed(123)
+
+data_split <- initial_split(dt, prop = 2 / 3, strata = call)
+call_train <- training(data_split)
+call_test <- testing(data_split)
+```
+
+
+
+### Graphique de répartition des classes dans les sous-Ensembles
+```{r, fig.height=3, fig.align='center'}
+train_dist <- table(call_train$call)
+test_dist <- table(call_test$call) 
+
+dist_data <- data.frame(
+  Dataset = c(rep("données d'entrainement", length(train_dist)), rep("données test", length(test_dist))),
+  Class = c(names(train_dist), names(test_dist)),
+  Count = c(as.vector(train_dist), as.vector(test_dist))
+)
+
+dist_data <- dist_data %>%
+  group_by(Dataset) %>%
+  mutate(Percentage = Count / sum(Count) * 100)
+
+dist_data$Class <- factor(dist_data$Class, levels = c("1", "0"))
+
+ggplot(dist_data, aes(x = Dataset, y = Count, fill = Class)) +
+  geom_bar(stat = "identity", position = "stack") +
+  geom_text(aes(label = paste0(round(Percentage, 1), "%")), 
+            position = position_stack(vjust = 0.5), color = "white",size = 2) +
+  scale_fill_manual( 
+    values = c("1" = "plum", "0" = "orchid4"), 
+    labels = c("1" = "1", "0" = "0"))+ 
+    labs(title = "", 
+       x = "Sous-Ensemble", 
+       y = "Nombre d'Observations",
+       fill = "Classe") +  
+  theme_minimal() +
+  theme(legend.position = "right") 
+```
+
+Dans notre ensemble d'entraînement, 92,1 % des échantillons appartiennent à la classe 0, contre 7,9 % pour la classe 1. De manière similaire, l'ensemble de test contient 91,7 % d'échantillons de la classe 0 et 8,3 % de la classe 1. 
+
+## Optimisation des hyperparamètres 
+
+En raison du déséquilibre prononcé dans la distribution de la variable cible call, nous avons mis en place une stratégie de rééquilibrage des classes pour améliorer la capacité prédictive de nos modèles.
+Pour cela, nous utiliserons dans les recettes de nos modèles la technique de sur-échantillonnage synthétique SMOTENC, une version de SMOTE (Synthetic Minority Over-sampling Technique) adaptée aux données mixtes (numériques et catégorielles) , qui permet de générer artificiellement de nouvelles observations pour la classe minoritaire (call=1). Cette méthode vise à améliorer la détection de ces cas rares mais essentiels pour notre analyse.
+
+Les paramètres retenus pour la méthode SMOTE sont over_ratio et neighbors. Over_ratio permet de fixer la proportion d'observations synthétiques à générer relativement à la classe majoritaire, afin de rééquilibrer efficacement les classes. Quant à Neighbors, il détermine le nombre de voisins les plus proches utilisés lors de la création des exemples synthétiques, garantissant ainsi que ces nouvelles observations restent cohérentes avec la structure locale des données existantes.
+
+
+Les autres étapes de prétraitement appliquées aux différents modèles, avec des variations selon les spécificités algorithmiques, incluent : la transformation des variables qualitatives en variables binaires (step_dummy), la suppression des variables à variance quasi-nulle (step_zv), la normalisation, le centrage et la réduction des variables numériques (step_normalize, step_center, step_scale), la réduction de la dimensionnalité par ACP (step_pca), la suppression des variables fortement corrélées (step_corr), ainsi que le sous-échantillonnage de la classe majoritaire (step_downsample). Les recettes de chaque modèle seront  mis en annexe. 
+
+
+Pour évaluer et optimiser la performance des modèles, nous nous baserons principalement sur le F1-score :
+
+
+\[
+\text{F1-score} = \frac{2 \times (\text{Précision} \times \text{Sensibilité})}{\text{Précision} + \text{Sensibilité}}
+\]
+
+avec Sensibilité :
+
+\[
+\text{Sensibilité} = \frac{VP}{VP + FN}
+\]
+
+et Précision :
+
+\[
+\text{Précision} = \frac{VP}{VP + FP}
+\]
+
+Nous examinerons également l’accuracy (exactitude) définie comme suit :
+\[
+\text{Accuracy} = \frac{VP + VN}{VP + VN + FP + FN}
+\]
+
+\[
+\text{avec} \quad
+\begin{aligned}
+VP &: \text{Vrais Positifs (candidats correctement prédits comme rappelés)}\\[6pt]
+VN &: \text{Vrais Négatifs (candidats correctement prédits comme non rappelés)}\\[6pt]
+FP &: \text{Faux Positifs (candidats prédits comme rappelés alors qu'ils ne l'ont pas été.)}\\[6pt]
+FN &: \text{Faux Négatifs (candidats prédits comme non rappelés alors qu'ils l'ont été.)}
+\end{aligned}
+\]  
+
+
+Matrice de confusion : prédiction des candidats rappelés
+\[
+\begin{array}{c|cc}
+\text{Réalité / Prédiction} & \text{n'ont pas été rappelés(0)} & \text{ont été rappelés (1)} \\ \hline
+\text{n'ont pas été rappelés(0)} & VN & FP \\
+\text{ont été rappelés (1)} & FN & VP \\
+\end{array}
+\]
+
+
+Enfin, nous utiliserons également la courbe ROC et l'indicateur AUC afin de sélectionner le meilleur modèle possible, c’est-à-dire celui qui minimisera simultanément les erreurs de classification des deux classes.
+\[
+AUC \approx 1 \Rightarrow \text{Excellent modèle}, \quad AUC \approx 0.5 : \text{modèle aléatoire}
+\]
+
+Nous estimons qu'un modèle avec une AUC proche de 1 possède une excellente capacité de discrimination et constitue donc le meilleur choix. Notre objectif est d’optimiser les performances afin d’identifier avec précision les candidats rappelés tout en réduisant le nombre d'erreurs.
+
+Pour garantir une évaluation des modèles robuste, nous avons utilisé une validation croisée à 10 plis avec 3 répétitions.
+
+# Modèles
+
+Dans cette partie, nous allons tester et comparer plusieurs modèles de classification supervisée afin de prédire  si un candidat est rappelé ou non par le recruteur. Pour cela, nous appliquerons les modèles suivants :
+
+- Analyse Discriminante Linéaire (LDA)
+- Analyse Discriminante Quadratique (QDA)
+- k-plus proches voisins (k-NN)
+- Support Vector Machine à noyau radial (SVM Radial)
+- Support Vector Machine linéaire (SVM Linéaire)
+- Régression logistique (Logit)
+- Arbre de décision
+- Forêt Aléatoire
+- Boosting
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+set.seed(123)
+
+data_split <- initial_split(dt, prop = 2 / 3, strata = call)
+
+call_train <- training(data_split)
+call_test <- testing(data_split)
+```
+
+
+
+
+
+
+
+
+
+## Analyse discriminante linéaire (LDA)  
+
+La LDA représente une approche simple mais souvent efficace, ce qui en fait un bon choix pour initier notre étude. Lorsqu’une structure linéaire domine les relations entre variables, ce modèle peut offrir des performances intéressantes. Malgré sa simplicité, il arrive qu’il surpasse des méthodes plus complexes, d’où l’intérêt de ne pas l’écarter trop tôt.
+
+
+```{r}
+library(tidymodels)
+library(themis)    
+
+df_folds <- vfold_cv(call_train, v = 10, repeats=3, strata = call)
+
+lda_recipe <- recipe(call ~ ., data = call_train) %>%
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
+  step_zv(all_predictors()) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_smotenc(call, over_ratio = tune(), neighbors = tune()) %>%
+  step_corr(all_numeric_predictors(), threshold = 0.9)
+
+lda_spec <- discrim_linear() %>%
+  set_mode("classification") %>%
+  set_engine("MASS")
+
+lda_wf <- workflow() %>%
+  add_model(lda_spec) %>%
+  add_recipe(lda_recipe)
+
+grid_lda <- grid_regular(
+ 
+  over_ratio(range = c(0.8, 1.5)),
+  neighbors(range = c(3, 8)),
+  levels = 5)
+
+#lda_tune <- tune_grid( lda_wf, resamples = df_folds, grid = grid_lda, metrics = metric_set(f_meas, roc_auc, precision, accuracy))
+```
+
+```{r}
+#save(lda_tune, file = "lda_tune.rda")
+```
+
+```{r}
+#load("lda_tune.rda")
+
+#final_lda_wf <- finalize_workflow(lda_wf, best_params)
+#final_lda_fit <- last_fit(final_lda_wf, split = data_split)
+
+#save(final_lda_fit, file = "lda_fit.rda")
+```
+
+```{r}
+load("lda_tune.rda")
+load("lda_fit.rda")
+```
+
+```{r}
+lda_res <- final_lda_fit |> collect_predictions()
+```
+
+\vspace{16pt}
+
+**Optimisation des hyperparamètres :** 
+
+Le modèle LDA a été optimisé en utilisant la métrique F1-score.
+
+\vspace{12pt}
+
+```{r, fig.align='left'}
+best_lda_params <- select_best(lda_tune, metric = "f_meas")
+
+tibble(
+  `Neighbors` = best_lda_params$neighbors,
+  `Over-ratio` = best_lda_params$over_ratio
+) |> 
+  tableau_html(titre = "Hyperparamètres retenus - LDA", format = "markdown", row.names=F) |> 
+  row_spec(0, bold = TRUE)
+```
+
+```{r, fig.align='center'}
+f_plot_lda <- lda_tune %>%
+  collect_metrics() %>%
+  filter(.metric == "f_meas")
+
+graph_auto_lda <- ggplot() +
+  geom_line(
+    data = f_plot_lda, 
+    aes(x = neighbors, y = mean, color = factor(over_ratio)),
+    size = 1
+  ) +
+  mon_theme +  
+  labs(
+    x = "Nombre de voisins", 
+    y = "F-mesure",
+    color = "Over-ratio",
+    title = "Optimisation des hyperparamètres : LDA"
+  )
+
+affichage_transparent(graph_auto_lda, 
+                      height = 3, 
+                      scale = 1,
+                      width = 6)
+
+```
+
+\newpage 
+
+**Performances du modèle :**
+
+```{r}
+matrice_confusion <- function(conf_mat_result, titre = "Matrice de confusion") {
+  conf_df <- as.data.frame(conf_mat_result$table)
+
+  conf_table <- xtabs(Freq ~ Prediction + Truth, data = conf_df)
+
+  conf_table <- addmargins(conf_table)
+
+  df_conf <- data.frame(
+    " " = c("Réalité", "Réalité", " "), 
+    " " = c("0", "1", "Total"),
+    "0" = c(conf_table["0", "0"], conf_table["1", "0"], conf_table["Sum", "0"]),
+    "1" = c(conf_table["0", "1"], conf_table["1", "1"], conf_table["Sum", "1"]),
+    "Total" = c(conf_table["0", "Sum"], conf_table["1", "Sum"], conf_table["Sum", "Sum"]),
+    check.names = FALSE
+  )
+
+  df_conf |>
+    kable(align = "c", format = "markdown",  caption = titre) |>
+    kable_paper(full_width = FALSE) |>
+    column_spec(c(1, 2, 5), bold = TRUE) |>
+    row_spec(c(0, 3), bold = TRUE) |>
+    row_spec(0, color = "brown") |>
+    column_spec(2, color = "brown") |>
+    collapse_rows(columns = 1:2, valign = "top") |>
+    add_header_above(c(" " = 2, "Prédiction" = 3), bold = TRUE, line = FALSE)
+}
+conf_mat_result_lda <- conf_mat(lda_res, truth = call, estimate = .pred_class)
+
+lda_mat_conf <- conf_mat_result_lda$table
+matrice_confusion(conf_mat_result_lda, titre = "Matrice de confusion : LDA")
+```
+
+
+
+
+```{r}
+roc_lda <- roc(call_test$call, lda_res$.pred_1)
+
+#roc_graph_lda <- Courbe_roc(roc_lda) + mon_theme + carre_ggplot()
+#affichage_transparent(roc_graph_lda,  height = 2,  scale = 1,  width = 3.5)
+```
+
+
+```{r}
+predictions <- predict(
+  final_lda_fit$.workflow[[1]], 
+  new_data = call_train, 
+  type = "prob")
+
+predictions$.pred_class <- ifelse(predictions$.pred_1 > 0.5, 1, 0)
+
+lda_mat_conf_train <- data.frame(
+  Réalité = call_train$call,
+  Prédiction = predictions$.pred_class
+) |> table()
+
+perf_modele(lda_mat_conf,
+            lda_mat_conf_train,
+            roc_lda,
+            format = "markdown",
+            titre = "Performances du modèle : LDA"
+)
+```
+
+Malgré une recette incluant la méthode SMOTENC pour traiter le déséquilibre des classes, le modèle LDA se révèle inadapté pour repérer efficacement les candidats rappelés. Sa sensibilité très basse (13.60%) et son F-score limité (21.21%) traduisent une incapacité à identifier une part significative des profils rappelés. Face à ces résultats peu satisfaisants, nous poursuivons l’analyse avec un autre modèle dans l’espoir d’obtenir de meilleures performances. 
+
+
+
+
+
+
+
+
+## Analyse Discriminante Quadratique (QDA)
+
+La QDA constitue une version plus flexible de la LDA, capable de modéliser des relations non linéaires entre les variables. Ce modèle peut être pertinent lorsque les groupes à prédire présentent des structures de variance différentes. Bien qu’il soit plus complexe, il peut dans certains cas mieux s’adapter aux données, ce qui justifie son exploration dans le cadre de notre étude.
+
+```{r}
+library(parsnip)
+library(MASS)
+qda_spec <- discrim_quad() %>%
+  set_mode("classification") %>%
+  set_engine("MASS")
+```
+
+```{r}
+qda_recipe <- recipe(call ~ ., data = call_train) %>%
+  step_smotenc(call, over_ratio = tune(), neighbors = tune()) %>%
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
+  step_zv(all_predictors()) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_pca(all_numeric_predictors(), threshold = 0.9)   
+```
+
+```{r}
+qda_wf <- workflow() %>%
+  add_model(qda_spec) %>%
+  add_recipe(qda_recipe)
+```
+
+```{r}
+grid_qda <- grid_regular(
+  over_ratio(range = c(0.8, 2)),
+  neighbors(range = c(3, 8)),
+  levels = 5
+)
+```
+
+```{r}
+df_folds <- vfold_cv(call_train, v = 10, strata = call, repeats =3)
+
+#qda_tune <- tune_grid( qda_wf, resamples = df_folds, grid = grid_qda, metrics = metric_set(f_meas, roc_auc, precision, accuracy))
+```
+
+
+```{r}
+#save(qda_tune , file = "qda_tune.rda")
+```
+
+```{r}
+#final_qda_wf <- finalize_workflow(qda_wf, best_qda_params)
+#final_qda_fit <- last_fit(final_qda_wf, split = data_split)
+
+#save(final_qda_fit, file = "qda_fit.rda")
+```
+
+```{r}
+load("qda_tune.rda")
+load("qda_fit.rda")
+qda_res <- final_qda_fit |> collect_predictions()
+```
+
+\vspace{12pt}
+
+**Optimisation des hyperparamètres :**
+
+Le modèle QDA a été optimisé en utilisant la métrique F1-score.
+
+```{r}
+best_qda_params <- select_best(qda_tune, metric = "f_meas")
+
+tibble(
+  `Neighbors` = best_qda_params$neighbors,
+  `Over-ratio` = best_qda_params$over_ratio
+) |> 
+  tableau_html(titre = "Hyperparamètres retenus - QDA", format = "markdown", row.names=F) |> 
+  row_spec(0, bold = TRUE)
+```
+
+```{r, fig.align='center'}
+f_plot_qda <- qda_tune %>%
+  collect_metrics() %>%
+  filter(.metric == "f_meas")
+
+graph_auto_qda <- ggplot() +
+  geom_line(
+    data = f_plot_qda, 
+    aes(x = neighbors, y = mean, color = factor(over_ratio)),
+    size = 1
+  ) +
+  mon_theme +  
+  labs(
+    x = "Nombre de voisins", 
+    y = "F-mesure",
+    color = "Over-ratio",
+    title = "Optimisation des hyperparamètres : QDA"
+  )
+
+affichage_transparent(graph_auto_qda, 
+                      height = 3, 
+                      scale = 1,
+                      width = 6)
+```
+
+\vspace{12pt}
+
+**Performances du modèle :**
+
+```{r}
+matrice_confusion <- function(conf_mat_result, titre = "Matrice de confusion") {
+  conf_df <- as.data.frame(conf_mat_result$table)
+
+  conf_table <- xtabs(Freq ~ Prediction + Truth, data = conf_df)
+
+  conf_table <- addmargins(conf_table)
+  df_conf <- data.frame(
+    " " = c("Réalité", "Réalité", " "), 
+    " " = c("0", "1", "Total"),
+    "0" = c(conf_table["0", "0"], conf_table["1", "0"], conf_table["Sum", "0"]),
+    "1" = c(conf_table["0", "1"], conf_table["1", "1"], conf_table["Sum", "1"]),
+    "Total" = c(conf_table["0", "Sum"], conf_table["1", "Sum"], conf_table["Sum", "Sum"]),
+    check.names = FALSE
+  )
+
+  df_conf |>
+    kable(align = "c", format = "markdown", caption = titre) |>
+    kable_paper(full_width = FALSE) |>
+    column_spec(c(1, 2, 5), bold = TRUE) |>
+    row_spec(c(0, 3), bold = TRUE) |>
+    row_spec(0, color = "brown") |>
+    column_spec(2, color = "brown") |>
+    collapse_rows(columns = 1:2, valign = "top") |>
+    add_header_above(c(" " = 2, "Prédiction" = 3), bold = TRUE, line = FALSE)
+}
+conf_mat_result_qda <- conf_mat(qda_res, truth = call, estimate = .pred_class)
+
+qda_conf_test <- conf_mat_result_qda$table
+matrice_confusion(conf_mat_result_qda, titre = "Matrice de confusion : QDA")
+```
+
+```{r}
+roc_qda <- roc(call_test$call, qda_res$.pred_1)
+
+#roc_graph_qda <- Courbe_roc(roc_qda) + mon_theme + carre_ggplot()
+#affichage_transparent(roc_graph_qda, height = 2, scale = 1, width = 3.5)
+```
+
+
+```{r}
+predictions <- predict(
+  final_qda_fit$.workflow[[1]], 
+  new_data = call_train, 
+  type = "prob")
+
+predictions$.pred_class <- ifelse(predictions$.pred_1 > 0.5, 1, 0)
+
+qda_mat_conf_train <- data.frame(
+  Réalité = call_train$call,
+  Prédiction = predictions$.pred_class
+) |> table()
+
+perf_modele(qda_conf_test,
+            qda_mat_conf_train,
+            roc_qda,
+            format = "markdown",
+            titre = "Performances du modèle : QDA"
+)
+```
+
+Le modèle QDA, malgré l'optimisation des hyperparamètres, présente des résultats globalement moins bons que le modèle LDA. Sa précision de 43.70% et sa faible sensibilité (8.24%) montrent qu’il a des difficultés à identifier les candidats rappelés. Le faible F-score de 13.87% et le taux d’erreur élevé en test et train confirme que ce modèle n'est pas optimal pour prédire les candidats rappelés, et ne répond donc pas efficacement à l'objectif de l’étude. 
+
+
+
+
+## k-plus proches voisins (k-NN)
+
+Le modèle KNN est un modèle simple et intuitif basé sur la notion de voisinage : il prédit en se référant aux observations les plus proches dans l’espace des données. Sa flexibilité face à des relations complexes fait de lui un modèle pertinent à tester, bien que ses performances dépendent fortement du choix du nombre de voisins et du prétraitement des variables.
+
+```{r}
+df_folds <- vfold_cv(call_train, v = 10, strata = call, repeats =3)
+
+knn_recipe <- recipe(call ~ ., data = call_train) %>%
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
+  step_zv(all_predictors()) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_smotenc(call, over_ratio = tune(), neighbors = tune()) %>%
+  step_corr(all_numeric_predictors(), threshold = 0.9)
+
+knn_spec <- nearest_neighbor() %>%
+  set_mode("classification") %>%
+  set_engine("kknn")
+
+knn_wf <- workflow() %>%
+  add_model(knn_spec) %>%
+  add_recipe(knn_recipe)
+
+grid_knn <- grid_regular(
+  over_ratio(range = c(0.8, 1.5)),
+  neighbors(range = c(3, 8)),
+  levels = 5
+)
+
+#knn_tune <- tune_grid(knn_wf, resamples = df_folds, grid = grid_knn, metrics = metric_set(f_meas, roc_auc, precision, accuracy))
+```
+
+```{r}
+#save(knn_tune, file = "knn_tune.rda")
+```
+
+```{r}
+#final_knn_wf <- finalize_workflow(knn_wf, best_params_knn)
+#final_knn_fit <- last_fit(final_knn_wf, split = data_split)
+```
+
+```{r}
+#save(final_knn_fit, file = "knn_fit.rda")
+```
+
+
+
+```{r}
+load("knn_tune.rda")
+load("knn_fit.rda")
+```
+
+```{r}
+knn_res <- final_knn_fit |> collect_predictions()
+```
+
+\vspace{16pt}
+
+**Optimisation des hyperparamètres :** 
+
+Le modèle KNN a été optimisé en utilisant la métrique F1-score.
+
+\vspace{8pt}
+
+```{r}
+best_knn_params <- select_best(knn_tune, metric = "f_meas")
+
+tibble(
+  `Neighbors` = best_knn_params$neighbors,
+  `Over-ratio` = best_knn_params$over_ratio
+) |> 
+  tableau_html(titre = "Hyperparamètres retenus - KNN", format = "markdown", row.names=F) |> 
+  row_spec(0, bold = TRUE)
+```
+
+\vspace{5pt}
+
+```{r, fig.align='center'}
+f_plot_knn <- knn_tune %>%
+  collect_metrics() %>%
+  filter(.metric == "f_meas")
+
+graph_auto_knn <- ggplot() +
+  geom_line(
+    data = f_plot_knn, 
+    aes(x = neighbors, y = mean, color = factor(over_ratio)),
+    size = 1
+  ) +
+  mon_theme + 
+  labs(
+    x = "Nombre de voisins", 
+    y = "F-mesure",
+    color = "Over-ratio",
+    title = "Optimisation des hyperparamètres : KNN"
+  )
+
+affichage_transparent(graph_auto_knn, 
+                      height = 3, 
+                      scale = 1,
+                      width = 6)
+```
+
+\vspace{16pt}
+
+**Performances du modèle :**
+
+```{r}
+matrice_confusion <- function(conf_mat_result, titre = "Matrice de confusion") {
+  conf_df <- as.data.frame(conf_mat_result$table)
+
+  conf_table <- xtabs(Freq ~ Prediction + Truth, data = conf_df)
+  conf_table <- addmargins(conf_table)
+  df_conf <- data.frame(
+    " " = c("Réalité", "Réalité", " "), 
+    " " = c("0", "1", "Total"),
+    "0" = c(conf_table["0", "0"], conf_table["1", "0"], conf_table["Sum", "0"]),
+    "1" = c(conf_table["0", "1"], conf_table["1", "1"], conf_table["Sum", "1"]),
+    "Total" = c(conf_table["0", "Sum"], conf_table["1", "Sum"], conf_table["Sum", "Sum"]),
+    check.names = FALSE
+  )
+  df_conf |>
+    kable(align = "c", format = "markdown", caption = titre) |>
+    kable_paper(full_width = FALSE) |>
+    column_spec(c(1, 2, 5), bold = TRUE) |>
+    row_spec(c(0, 3), bold = TRUE) |>
+    row_spec(0, color = "brown") |>
+    column_spec(2, color = "brown") |>
+    collapse_rows(columns = 1:2, valign = "top") |>
+    add_header_above(c(" " = 2, "Prédiction" = 3), bold = TRUE, line = FALSE)
+}
+conf_mat_result_knn <- conf_mat(knn_res, truth = call, estimate = .pred_class)
+
+knn_conf_test <- conf_mat_result_knn$table
+matrice_confusion(conf_mat_result_knn, titre = "Matrice de confusion : KNN")
+```
+
+```{r}
+roc_knn <- roc(call_test$call, knn_res$.pred_1)
+
+#roc_graph_knn <- Courbe_roc(roc_knn) + mon_theme + carre_ggplot()
+#affichage_transparent(roc_graph_knn,  height = 2,  scale = 1, width = 3.5)
+```
+
+\newpage
+
+```{r}
+predictions <- predict(
+  final_knn_fit$.workflow[[1]], 
+  new_data = call_train, 
+  type = "prob")
+
+predictions$.pred_class <- ifelse(predictions$.pred_1 > 0.5, 1, 0)
+
+knn_mat_conf_train <- data.frame(
+  Réalité = call_train$call,
+  Prédiction = predictions$.pred_class
+) |> table()
+
+perf_modele(knn_conf_test,
+            knn_mat_conf_train,
+            roc_knn,
+            format = "markdown",
+            titre = "Performances du modèle : KNN"
+)
+```
+
+Le modèle KNN présente une faible précision de 17.04% et une sensibilité de 15.33%, ce qui indique qu'il peine à identifier les candidats rappelés. Le F-score de 16.14% montre un compromis médiocre entre précision et rappel. La performance globale du modèle KNN reste insuffisante pour une prédiction fiable des candidats rappelés. En comparaison, le modèle LDA semble plus adapté pour prédire la classe 1, avec une précision et un F-score plus élevés.
+
+
+
+
+
+
+
+## SVM Radial
+
+
+Le SVM à noyau radial est un modèle performant lorsqu’il s’agit de capturer des relations non linéaires entre les variables. Grâce à son noyau, il projette les données dans un espace de dimensions supérieures pour mieux les séparer. Ce modèle est particulièrement utile quand les frontières entre classes sont complexes. Toutefois, son efficacité repose sur le réglage de deux hyperparamètres : le coût, qui gère le compromis entre marge et erreurs de classification, et le noyau rbf_sigma, qui détermine la portée de l’influence d’un point sur la frontière. Un ajustement approprié de ces paramètres permet d’éviter le surapprentissage ou un modèle trop simpliste.
+
+
+
+```{r}
+svmr_spec <- svm_rbf(cost = tune(), rbf_sigma = tune()) |>
+  set_mode("classification") |>
+  set_engine("kernlab")
+
+svmr_rec <- recipe(call ~ ., data = call_train) |>
+  step_center(all_numeric_predictors()) |>
+  step_scale(all_numeric_predictors()) |>
+  step_smotenc(call, over_ratio = tune(), neighbors = tune()) |>
+  step_downsample(call, under_ratio = 1) |>
+  step_dummy(all_nominal_predictors())|>
+  step_corr(all_numeric_predictors(), threshold = 0.9, method = "spearman")
+```
+
+```{r}
+library(future)
+plan(multisession)   
+
+svmr_workflow <- workflow() %>%
+    add_recipe(svmr_rec) %>%
+    add_model(svmr_spec)
+
+svmr_para <- extract_parameter_set_dials(svmr_workflow) |>
+    update(
+        cost = cost(c(-2, 1)),  
+        rbf_sigma = rbf_sigma(c(-2, 0)),  
+        over_ratio = over_ratio(c(0.5, 1)),  
+        neighbors = neighbors(c(5, 15))  
+    )
+
+svmr_grid <- grid_regular(svmr_para, levels = c(5, 4, 5, 5))  
+
+data_folds <- vfold_cv(call_train,v=10, strata = call, repeats = 3)
+
+n_core<-detectCores(logical=TRUE)
+registerDoParallel(cores = n_core - 1)
+
+#svmr_tune <- svmr_workflow %>%  tune_grid(resamples = data_folds, grid = svmr_grid, metrics = metric_set(
+ #           roc_auc, accuracy, 
+  #          yardstick::precision, 
+   #         yardstick::recall, 
+      #      yardstick::f_meas ) )
+```
+
+
+```{r}
+#stopImplicitCluster()
+#save(svmr_tune, file = "svmr_tune.rda")
+```
+
+```{r}
+#svmr_best_auc <- svmr_tune %>%  collect_metrics() %>%
+  #filter(.metric == "roc_auc") %>%
+ # arrange(desc(mean)) %>%
+  #slice_head(n=1)
+
+#svmr_best_acc <- svmr_tune %>% collect_metrics() %>%
+ # filter(.metric == "accuracy") %>%
+  #arrange(desc(mean)) %>%
+   #slice_head(n=1)
+
+#svmr_best_fscore <- svmr_tune %>% collect_metrics() %>%
+ # filter(.metric == "f_meas") %>%
+  #arrange(desc(mean)) %>%
+   # slice_head(n=1)
+```
+
+```{r}
+#svmr_final_wf <- svmr_workflow  |> finalize_workflow(svmr_best_auc)
+#svmr_fit <- svmr_final_wf |> last_fit(split = data_split)
+
+#save(svmr_fit, file = "svmr_fit.rda")
+```
+
+
+```{r}
+load("svmr_tune.rda")
+load("svmr_fit.rda")
+
+svmr_pred <- svmr_fit |> collect_predictions()
+```
+
+\vspace{8pt}
+
+**Optimisation des hyperparamètres :** 
+
+Le modèle SVM Radial a été optimisé en utilisant la métrique ROC-AUC.
+
+```{r, fig.align='center'}
+auto_svmr <- autoplot(svmr_tune)
+auto_roc_auc_svmr <- auto_svmr$plot_env$dat %>%
+  filter(
+    `Over-Sampling Ratio` == "0.875",
+    .metric == "roc_auc"
+  )
+
+auto_roc_auc_svmr$`Radial Basis Function sigma` <- as.factor(auto_roc_auc_svmr$`Radial Basis Function sigma`)
+auto_roc_auc_svmr$`# Nearest Neighbors` <- as.numeric(auto_roc_auc_svmr$`# Nearest Neighbors`)
+
+graph_auto_svmr <- ggplot(auto_roc_auc_svmr, aes(x = `# Nearest Neighbors`, y = mean, color = `Radial Basis Function sigma`)) +
+  geom_line(size = 1) +
+  mon_theme +
+  labs(
+    y = "ROC AUC", 
+    x = "Nombre de voisins", 
+    color = "Niveau du noyau",
+    title = "Optimisation des hyperparamètres : SVM Radial"
+  )
+
+affichage_transparent(graph_auto_svmr, height = 3, scale = 1, width = 6)
+```
+
+
+
+
+
+
+
+```{r}
+tibble(
+  `Cout` = svmr_fit[[6]][[1]][["fit"]][["fit"]][["spec"]][["args"]][["cost"]][[2]],
+  `Niveau du Noyau` = round(svmr_fit[[6]][[1]][["fit"]][["fit"]][["spec"]][["args"]][["rbf_sigma"]][[2]], 2),
+  `Taux de re-échantillonnage` = svmr_fit[[6]][[1]][["pre"]][["actions"]][["recipe"]][["recipe"]][["steps"]][[3]][["over_ratio"]],
+  `Nombres de voisins utilisé` = svmr_fit[[6]][[1]][["pre"]][["actions"]][["recipe"]][["recipe"]][["steps"]][[3]][["neighbors"]]
+) |> tableau_html(titre = "Hyperparamètres retenus - SVM Radial", format = "markdown", row.names = FALSE) |> 
+  row_spec(0, bold = TRUE)
+```
+
+**Performances du modèle :**
+```{r}
+matrice_confusion <- function(conf_mat_result, titre = "Matrice de confusion") {
+  conf_df <- as.data.frame(conf_mat_result$table)
+  conf_table <- xtabs(Freq ~ Prediction + Truth, data = conf_df)
+  conf_table <- addmargins(conf_table)
+  df_conf <- data.frame(
+    " " = c("Réalité", "Réalité", " "), 
+    " " = c("0", "1", "Total"),
+    "0" = c(conf_table["0", "0"], conf_table["1", "0"], conf_table["Sum", "0"]),
+    "1" = c(conf_table["0", "1"], conf_table["1", "1"], conf_table["Sum", "1"]),
+    "Total" = c(conf_table["0", "Sum"], conf_table["1", "Sum"], conf_table["Sum", "Sum"]),
+    check.names = FALSE
+  )
+
+  df_conf |>
+    kable(align = "c", format = "markdown", caption = titre) |>
+    kable_paper(full_width = FALSE) |>
+    column_spec(c(1, 2, 5), bold = TRUE) |>
+    row_spec(c(0, 3), bold = TRUE) |>
+    row_spec(0, color = "brown") |>
+    column_spec(2, color = "brown") |>
+    collapse_rows(columns = 1:2, valign = "top") |>
+    add_header_above(c(" " = 2, "Prédiction" = 3), bold = TRUE, line = FALSE)
+}
+conf_mat_result_svmr <- conf_mat(svmr_pred, truth = call, estimate = .pred_class)
+
+svmr_conf_test <- conf_mat_result_svmr$table
+matrice_confusion(conf_mat_result_svmr, titre = "Matrice de confusion : SVM Radial")
+```
+
+```{r}
+roc_svmr <- roc(call_test$call, svmr_pred$.pred_1)
+
+#roc_graph_svmr <- Courbe_roc(roc_svmr) + mon_theme + carre_ggplot()
+
+#affichage_transparent(roc_graph_svmr,  height = 2, scale = 1, width = 3.5)
+```
+
+
+```{r}
+predictions <- predict(
+  svmr_fit$.workflow[[1]], 
+  new_data = call_train, 
+  type = "prob")
+
+predictions$.pred_class <- ifelse(predictions$.pred_1 > 0.5, 1, 0)
+
+svmr_mat_conf_train <- data.frame(
+  Réalité = call_train$call,
+  Prédiction = predictions$.pred_class
+) |> table()
+
+perf_modele(svmr_conf_test, svmr_mat_conf_train, roc_svmr, titre = "Performances du modèle : SVM Radial")
+```
+
+
+Bien que la SVM radial affiche une bonne accuracy (83.37 %) et une forte spécificité (92.24 %), sa capacité à identifier les candidats rappelés reste très limitée comme le montre la sensibilité médiocre et le faible F-score. Le taux élevé de faux négatifs (87.29 %) indique que le modèle passe à côté de la majorité des cas positifs, malgré les tentatives de correction du déséquilibre. Ces résultats suggèrent que le modèle reste largement biaisé en faveur de la classe majoritaire, il répond donc pas à à l’objectif de prédire efficacement les rappelés.
+
+
+
+
+
+
+
+
+
+
+
+\vspace{12pt}
+
+
+
+
+## SVM Linéaire
+
+La SVM linéaire est un modèle qui cherche à séparer les classes par une droite ou un plan, en maximisant la marge entre elles. Elle est efficace lorsque les données sont séparables de façon linéaire, mais moins performante si la relation entre les variables est complexe. Le principal paramètre à optimiser ici est cost, qui gère l’équilibre entre une séparation stricte des classes et l’autorisation d’erreurs.
+
+```{r}
+svmlin_spec <- svm_linear(cost = tune()) |>
+  set_mode("classification") |>
+  set_engine("kernlab")
+
+svmlin_rec <- recipe(call ~ ., data = call_train) |>
+  step_center(all_numeric_predictors()) |>
+  step_scale(all_numeric_predictors()) |>
+  step_smotenc(call, over_ratio = tune(), neighbors = tune()) |>
+  step_dummy(all_nominal_predictors())  |>
+  step_corr(all_numeric_predictors(), threshold = 0.9, method = "spearman")  
+```
+
+
+
+```{r}
+svmlin_wf <- workflow() |> 
+  add_model(svmlin_spec) |> 
+  add_recipe(svmlin_rec)
+
+df_folds <- vfold_cv(call_train, v = 10, strata = call, repeats = 3)
+
+svmlin_range_para <- extract_parameter_set_dials(svmlin_wf) |>
+  update(
+    cost = cost(range = c(0, 3)),   
+    over_ratio = over_ratio(range = c(0.7, 1)), 
+    neighbors = neighbors(range = c(3, 5))
+  )
+
+svmlin_grid <- grid_regular(
+  svmlin_range_para,
+  levels = c(over_ratio = 5, cost = 10, neighbors = 5)
+)
+
+n_core <- detectCores(logical = TRUE)
+registerDoParallel(cores = n_core - 1)
+```
+
+```{r}
+library(tidymodels)
+library(future)
+library(doFuture)
+
+
+#plan(multisession, workers = parallel::detectCores() - 1)
+#svmlin_tune <- tune_grid(
+ # object = svmlin_wf,
+  #resamples = df_folds,
+  #grid = svmlin_grid,
+  #metrics = metric_set(
+  #  roc_auc, accuracy, 
+   #         yardstick::precision, 
+    #        yardstick::recall, 
+    #        yardstick::f_meas),
+  #control = control_grid(verbose = TRUE, allow_par = TRUE, save_pred = TRUE))
+#plan(sequential)
+```
+
+```{r}
+#save(svmlin_tune, file = "svmlin_tune.rda")
+
+#svmlin_best_auc <- svmlin_tune %>%
+#  collect_metrics() %>%
+ # filter(.metric == "roc_auc") %>%
+  #arrange(desc(mean)) %>%
+  #slice_head(n=1)
+
+#svmlin_best_acc <- svmlin_tune %>%
+ # collect_metrics() %>%
+  #filter(.metric == "accuracy") %>%
+  #arrange(desc(mean)) %>%
+  # slice_head(n=1)
+
+#svmlin_best_fscore <- svmlin_tune %>%
+ # collect_metrics() %>%
+  #filter(.metric == "f_meas") %>%
+  #arrange(desc(mean)) %>%
+   # slice_head(n=1)
+```
+
+
+```{r}
+#save(svmlin_tune, file = "svmlin_tune.RData")
+
+
+#svmlin_final_wf <- svmlin_wf |> finalize_workflow(svmlin_best_fscore)
+#svmlin_fit <- svmlin_final_wf |> last_fit(split = data_split)
+
+#save(svmlin_fit, file = "svmlin_fit.rda")
+#save(svmlin_fit, file = "svmlin_fit.RData")
+```
+
+
+
+```{r}
+load("svmlin_tune.rda")
+load("svmlin_fit.rda")
+
+svmlin_pred <- svmlin_fit |> collect_predictions()
+```
+
+\vspace{12pt}
+
+**Optimisation des hyperparamètres :** 
+
+Le modèle SVM Linéaire a été optimisé en utilisant la métrique F1-score.
+
+```{r, fig.align='center'}
+library(ggplot2)
+library(tidymodels)
+
+metrics_df <- svmlin_tune %>%
+  collect_metrics() %>%
+  filter(.metric == "f_meas", over_ratio == 0.7)
+
+graph_auto_svmlin<- ggplot(metrics_df, aes(x = cost, y = mean, color = factor(neighbors))) +
+  geom_line(size = 1.5) +
+  mon_theme +
+  labs(
+    y = "F-measure", 
+    x = "Cost Parameter", 
+    color = "Neighbors",
+    title = "Optimisation des hyperparamètres : SVM Linéaire"
+  )
+affichage_transparent(graph_auto_svmlin, 
+                      height = 3, 
+                      scale = 1,
+                      width = 6)
+```
+
+```{r}
+tibble(
+  `Cout` = svmlin_fit[[6]][[1]][["fit"]][["fit"]][["spec"]][["args"]][["cost"]][[2]],
+  `Taux de re-échantillonnage` = svmlin_fit[[6]][[1]][["pre"]][["actions"]][["recipe"]][["recipe"]][["steps"]][[3]][["over_ratio"]],
+  `Nombres de voisins utilisé` = svmlin_fit[[6]][[1]][["pre"]][["actions"]][["recipe"]][["recipe"]][["steps"]][[3]][["neighbors"]]
+) |> tableau_html(titre = "Hyperparamètres retenus - SVM Linéaire", format = "markdown") |> 
+  row_spec(0, bold = TRUE)
+```
+
+\vspace{12pt}
+
+**Performances du modèle :**
+```{r}
+matrice_confusion <- function(conf_mat_result, titre = "Matrice de confusion") {
+  conf_df <- as.data.frame(conf_mat_result$table)
+  conf_table <- xtabs(Freq ~ Prediction + Truth, data = conf_df)
+  conf_table <- addmargins(conf_table)
+  df_conf <- data.frame(
+    " " = c("Réalité", "Réalité", " "), 
+    " " = c("0", "1", "Total"),
+    "0" = c(conf_table["0", "0"], conf_table["1", "0"], conf_table["Sum", "0"]),
+    "1" = c(conf_table["0", "1"], conf_table["1", "1"], conf_table["Sum", "1"]),
+    "Total" = c(conf_table["0", "Sum"], conf_table["1", "Sum"], conf_table["Sum", "Sum"]),
+    check.names = FALSE
+  )
+
+  df_conf |>
+    kable(align = "c", format = "markdown", caption = titre) |>
+    kable_paper(full_width = FALSE) |>
+    column_spec(c(1, 2, 5), bold = TRUE) |>
+    row_spec(c(0, 3), bold = TRUE) |>
+    row_spec(0, color = "brown") |>
+    column_spec(2, color = "brown") |>
+    collapse_rows(columns = 1:2, valign = "top") |>
+    add_header_above(c(" " = 2, "Prédiction" = 3), bold = TRUE, line = FALSE)
+}
+conf_mat_result_svmlin<- conf_mat(svmlin_pred, truth = call, estimate = .pred_class)
+
+svmlin_conf_test <- conf_mat_result_svmlin$table
+matrice_confusion(conf_mat_result_svmlin, titre = "Matrice de confusion : SVM Linéaire")
+```
+
+```{r}
+svmlin_pred <- svmlin_fit |> collect_predictions()
+roc_svmlin <- roc(call_test$call, svmlin_pred$.pred_1)
+
+#roc_graph_svmlin <- Courbe_roc(roc_svmlin) + mon_theme + carre_ggplot()
+#affichage_transparent(roc_graph_svmlin,  height = 2,  scale = 1, width = 3.5)
+```
+
+
+
+```{r}
+predictions <- predict(
+  svmlin_fit$.workflow[[1]], 
+  new_data = call_train, 
+  type = "prob")
+
+predictions$.pred_class <- ifelse(predictions$.pred_1 > 0.5, 1, 0)
+
+svmlin_mat_conf_train <- data.frame(
+  Réalité = call_train$call,
+  Prédiction = predictions$.pred_class
+) |> table()
+
+perf_modele(svmlin_conf_test, svmlin_mat_conf_train, roc_svmlin, titre = "Performances du modèle : SVM Linéaire")
+```
+
+\newpage
+
+Bien que la spécificité atteigne un solide 92,87 %, la sensibilité reste désastreusement basse à 11,91 %, traduisant un taux de faux négatifs de 88,09 %, tandis que le F-score plafonne à seulement 17,84 %. Cette disparité met en évidence le fait que, malgré une bonne détection des candidats non rappelés, le modèle SVM linéaire manque la quasi-totalité des profils pertinents à rappeler. 
+
+
+
+
+
+
+
+## Régression Logistique (Logit)
+
+Le modèle Logit, ou régression logistique, est un modèle linéaire utilisé pour la classification binaire. Il estime la probabilité d'appartenance à une classe à partir des variables explicatives, offrant ainsi simplicité et interprétabilité.
+
+```{r}
+logit_spec <- logistic_reg() %>%
+  set_mode("classification") %>%
+  set_engine("glm")
+
+logit_recipe <- recipe(call ~ ., data = call_train) %>%
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
+  step_zv(all_predictors()) %>%
+  step_smotenc(call, over_ratio = tune(), neighbors = tune()) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_corr(all_numeric_predictors(), threshold = 0.9)
+```
+
+```{r}
+logit_wf <- workflow() %>%
+  add_model(logit_spec) %>%
+  add_recipe(logit_recipe)
+```
+
+```{r}
+grid_logit <- grid_regular(
+  over_ratio(range = c(0.8, 1.5)),
+  neighbors(range = c(3, 8)),
+  levels = 5
+)
+```
+
+```{r}
+df_folds <- vfold_cv(call_train, v = 10, strata = call, repeats = 3)
+
+#logit_tune <- tune_grid(
+ # logit_wf,
+  #resamples = df_folds,
+  #grid = grid_logit,
+#  metrics = metric_set(f_meas, roc_auc, precision, accuracy))
+```
+
+```{r}
+#save(logit_tune, file = "logit_tune.rda")
+```
+
+```{r}
+#final_logit_wf <- finalize_workflow(logit_wf, best_logit_params)
+#final_logit_fit <- last_fit(final_logit_wf, split = data_split)
+```
+
+```{r}
+#save(final_logit_fit, file = "logit_fit.rda")
+```
+
+
+```{r}
+load("logit_tune.rda")
+load("logit_fit.rda")
+
+logit_res <- final_logit_fit |> collect_predictions()
+```
+
+\vspace{16pt}
+
+**Optimisation des hyperparamètres :** 
+
+Le modèle Logit a été optimisé en utilisant la métrique F1-score.
+
+\vspace{12pt}
+
+```{r}
+best_logit_params <- select_best(logit_tune, metric = "f_meas")
+
+tibble(
+  `Neighbors` = best_logit_params$neighbors,
+  `Over-ratio` = best_logit_params$over_ratio
+) |> 
+  tableau_html(titre = "Hyperparamètres retenus - Logit", format = "markdown", row.names=F) |> 
+  row_spec(0, bold = TRUE)
+```
+
+
+
+
+```{r, fig.align='center'}
+f_plot_logit <- logit_tune %>%
+  collect_metrics() %>%
+  filter(.metric == "f_meas")
+
+graph_auto_logit <- ggplot() +
+  geom_line(
+    data = f_plot_logit, 
+    aes(x = neighbors, y = mean, color = factor(over_ratio)),
+    size = 1
+  ) +
+  mon_theme + 
+  labs(
+    x = "Nombre de voisins", 
+    y = "F-mesure",
+    color = "Over-ratio",
+    title = "Optimisation des hyperparamètres : Logit"
+  )
+
+affichage_transparent(graph_auto_logit, 
+                      height = 3, 
+                      scale = 1,
+                      width = 6)
+```
+
+**Performances du modèle :**
+
+```{r}
+matrice_confusion <- function(conf_mat_result, titre = "Matrice de confusion") {
+  conf_df <- as.data.frame(conf_mat_result$table)
+
+  conf_table <- xtabs(Freq ~ Prediction + Truth, data = conf_df)
+  conf_table <- addmargins(conf_table)
+  df_conf <- data.frame(
+    " " = c("Réalité", "Réalité", " "), 
+    " " = c("0", "1", "Total"),
+    "0" = c(conf_table["0", "0"], conf_table["1", "0"], conf_table["Sum", "0"]),
+    "1" = c(conf_table["0", "1"], conf_table["1", "1"], conf_table["Sum", "1"]),
+    "Total" = c(conf_table["0", "Sum"], conf_table["1", "Sum"], conf_table["Sum", "Sum"]),
+    check.names = FALSE
+  )
+
+  df_conf |>
+    kable(align = "c", format = "markdown", caption = titre) |>
+    kable_paper(full_width = FALSE) |>
+    column_spec(c(1, 2, 5), bold = TRUE) |>
+    row_spec(c(0, 3), bold = TRUE) |>
+    row_spec(0, color = "brown") |>
+    column_spec(2, color = "brown") |>
+    collapse_rows(columns = 1:2, valign = "top") |>
+    add_header_above(c(" " = 2, "Prédiction" = 3), bold = TRUE, line = FALSE)
+}
+conf_mat_result_logit <- conf_mat(logit_res, truth = call, estimate = .pred_class)
+
+logit_conf_test <- conf_mat_result_logit$table
+matrice_confusion(conf_mat_result_logit, titre = "Matrice de confusion : Logit")
+```
+
+```{r}
+roc_logit <- roc(call_test$call, logit_res$.pred_1)
+
+#roc_graph_logit <- Courbe_roc(roc_logit) +  mon_theme + carre_ggplot()
+#affichage_transparent(roc_graph_logit,  height = 2,  scale = 1, width = 3.5)
+```
+
+\newpage
+
+```{r}
+predictions <- predict(
+  final_logit_fit$.workflow[[1]], 
+  new_data = call_train, 
+  type = "prob")
+
+predictions$.pred_class <- ifelse(predictions$.pred_1 > 0.5, 1, 0)
+
+logit_mat_conf_train <- data.frame(
+  Réalité = call_train$call,
+  Prédiction = predictions$.pred_class
+) |> table()
+
+perf_modele(logit_conf_test,
+            logit_mat_conf_train,
+            roc_logit,
+            format = "markdown",
+            titre = "Performances du modèle : Logit"
+)
+```
+
+
+Le modèle Logit présente une bonne spécificité (93.72%), ce qui signifie qu'il est efficace pour éviter les faux positifs. Cependant, sa faible sensibilité de 13.21% montre qu'il a du mal à identifier les candidats rappelés. Cela indique que, bien qu'il soit fiable pour prédire les cas négatifs, il reste insuffisant pour prédire efficacement les candidats rappeler. En comparaison, les résultats de LDA surpassent légèrement ceux du modèle Logit dans l'ensemble, bien que la différence reste modeste.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Arbre de décision
+
+L’arbre de décision est un modèle intuitif qui segmente les données en suivant des règles simples basées sur les variables explicatives. Il s’adapte bien aux variables qualitatives et résiste aux valeurs aberrantes. Cependant, il est sensible au surapprentissage, ce qui nécessite d’optimiser le paramètre de complexité, afin de limiter la croissance excessive de l’arbre et d’améliorer sa généralisation.
+
+```{r}
+dec_tree_spec <- decision_tree(cost_complexity = tune()) %>%
+  set_mode("classification") %>%
+  set_engine("rpart")
+
+data_rec <- call_train |>
+  recipe(call ~ ., strata = call) |>
+  step_center(all_numeric_predictors()) |>
+  step_scale(all_numeric_predictors()) |>
+  step_smotenc(call, over_ratio = tune(), neighbors =tune() ) |>
+  step_corr(all_numeric_predictors(), threshold = 0.9, method = "spearman") 
+```
+
+```{r}
+dec_tree_wf <- workflow() %>% add_model(dec_tree_spec) %>% add_recipe(data_rec)
+
+df_folds <- vfold_cv(call_train, v = 10, strata = call, repeats = 3)
+```
+
+```{r}
+dec_tree_range_para <- extract_parameter_set_dials(dec_tree_wf) |>
+  update(
+     cost_complexity = cost_complexity(range = c(-6, -2)),
+    over_ratio = over_ratio(range = c(0.3, 0.7)),
+    neighbors = neighbors(range = c(2, 6)))
+
+dec_tree_grid <- grid_regular(
+  dec_tree_range_para,
+  levels = c(over_ratio = 5, cost_complexity = 10, neighbors = 5))
+```
+
+```{r}
+n_core <- detectCores(logical = TRUE)
+registerDoParallel(cores = n_core - 1)
+```
+
+```{r}
+set.seed(123)
+#dec_tree_tune <- tune_grid(
+ # object = dec_tree_wf,
+  #resamples = df_folds,
+  #grid = dec_tree_grid,
+  #metrics = metric_set(
+   #  yardstick::roc_auc,
+   # roc_auc,
+    #accuracy,
+    #yardstick::precision,
+    #sens,
+    #spec,
+    #f_meas))
+```
+
+
+```{r}
+#stopImplicitCluster()
+```
+
+```{r}
+#best_params_auc <- dec_tree_tune %>%
+ # collect_metrics() %>%
+  #filter(.metric == "roc_auc") %>%
+#  arrange(desc(mean)) %>%
+ # slice_head(n = 1)
+
+#best_params_acc <- dec_tree_tune %>%
+ # collect_metrics() %>%
+#  filter(.metric == "accuracy") %>%
+ # arrange(desc(mean)) %>%
+ # slice_head(n = 1)
+
+#best_params_f <- dec_tree_tune %>%
+ # collect_metrics() %>%
+#  filter(.metric == "f_meas") %>%
+ # arrange(desc(mean)) %>%
+  #slice_head(n = 1)
+
+#save(dec_tree_tune, file = "dec_tree_fit.RData")
+
+#dec_tree_final_wf <- finalize_workflow(dec_tree_wf, best_params_acc)
+
+#dec_tree_fit <- dec_tree_final_wf %>% last_fit(split = data_split)
+
+#save(dec_tree_fit, file = "dec_tree_fit.RData")
+```
+
+```{r}
+load("dec_tree_tune.RData")
+load("dec_tree_fit.RData")
+
+dec_pred <- dec_tree_fit |> collect_predictions()
+```
+
+\vspace{12pt}
+
+**Optimisation des hyperparamètres :** 
+
+Le modèle Arbre de décision a été optimisé en utilisant la métrique Accuracy.
+
+```{r}
+auto_tune_dec_tree<-autoplot(dec_tree_tune, metric = "accuracy")
+
+plot_dec_tree <- auto_tune_dec_tree$plot_env$dat[
+  auto_tune_dec_tree$plot_env$dat$.metric == "accuracy" & 
+  auto_tune_dec_tree$plot_env$dat$`# Nearest Neighbors` == 2, ]
+```
+
+```{r, fig.align='center'}
+graph_auto_dec_tree <- ggplot() +
+  geom_line(data = plot_dec_tree, aes(x = value, y = mean, color = `Over-Sampling Ratio`), size = 1) +
+  mon_theme +
+  labs(y = "Accuracy", 
+       x = "Cost-Complexity Parameter",
+       color = "Over-ratio",
+       title = "Optimisation des hyperparamètres : Arbre de décision")
+
+affichage_transparent(graph_auto_dec_tree, 
+                      height = 3, 
+                      scale =1,
+                      width = 6)
+```
+
+```{r}
+tableau_html <- function(
+    x, titre = NULL, digit = 4, align = "c", escape = TRUE, format = "html",
+    style_police = "Roboto", col.names = colnames(x), row.names = TRUE, zoom = 1,
+    small = FALSE, ...) {
+  table <- x |>
+    kable(
+      caption = titre, align = align, format = format, digits = digit,
+      escape = escape, col.names = col.names, row.names = row.names, ...
+    )
+  if (small) {
+    table <- table |>
+      kable_styling(full_width = FALSE,
+        latex_options = c("hold_position", "scale_down", "longtable")
+      )
+  }
+  table <- table |>
+    kable_material(
+      lightable_options = c("striped", "hover"),
+      html_font = style_police,
+      ...
+    )
+
+  return(table)
+}
+
+
+tibble(
+  `Coût de complexité` = formatC(
+    quo_get_expr(dec_tree_fit[[6]][[1]][["fit"]][["actions"]][["model"]][["spec"]][["args"]][["cost_complexity"]]),
+    format = "e", digits = 2
+  ),
+  `Taux de re-échantillonnage` = dec_tree_fit[[6]][[1]][["pre"]][["actions"]][["recipe"]][["recipe"]][["steps"]][[3]][["over_ratio"]],
+  `Nombres de voisins utilisé` = dec_tree_fit[[6]][[1]][["pre"]][["actions"]][["recipe"]][["recipe"]][["steps"]][[3]][["neighbors"]]
+) |> 
+  tableau_html(titre = "Hyperparamètres retenus - Arbre de décision", format = "markdown", row.names = FALSE) |> 
+  row_spec(0, bold = TRUE)
+
+```
+
+\vspace{17pt}
+
+**Arbre de décision :**
+```{r, fig.align='center'}
+set.seed(123)
+dec_tree_fit |>
+  extract_fit_engine() |>
+  rpart.plot::prp(
+    type = 0, extra = 1,
+    roundint = FALSE
+  )
+```
+
+
+L’arbre de décision met en évidence les variables les plus discriminantes dans la prédiction des candidats rappelés. La racine de l’arbre, ethnicity = afam, montre que l'origine ethnique des candidats joue un rôle central dans la décision du modèle. Le fait que l'arbre ne poursuive aucune division pour ethnicity = afam "yes" et prédit systématiquement l'absence de rappel pour les candidats qui ont un prénom à consonnance afro-américaine révèle un biais du modèle, influencé par un déséquilibre de classes. Bien que 254 candidats afro-américains aient été rappelés, l'arbre les classe tous à tort comme "non rappelés", illustrant ainsi comment le déséquilibre entre les classes (rappelés vs non rappelés) affecte la performance du modèle, conduisant à une généralisation erronée pour cette catégorie.
+
+En revanche, pour les candidats non afro-américains, l’arbre considère des critères supplémentaires : l’absence de compétences particulières sur le CV (special = no), la correspondance avec les exigences du poste (requirem = yes), et enfin le type de poste recherché, à savoir management, office support ou supervisor (wanted). Ces variables sont utilisées pour affiner la décision du modèle et mieux prédire les candidats rappelés.
+
+
+\newpage
+
+**Performances du modèle :**
+
+```{r}
+matrice_confusion <- function(conf_mat_result, titre = "Matrice de confusion") {
+  conf_df <- as.data.frame(conf_mat_result$table)
+  conf_table <- xtabs(Freq ~ Prediction + Truth, data = conf_df)
+
+  conf_table <- addmargins(conf_table)
+
+  df_conf <- data.frame(
+    " " = c("Réalité", "Réalité", " "), 
+    " " = c("0", "1", "Total"),
+    "0" = c(conf_table["0", "0"], conf_table["1", "0"], conf_table["Sum", "0"]),
+    "1" = c(conf_table["0", "1"], conf_table["1", "1"], conf_table["Sum", "1"]),
+    "Total" = c(conf_table["0", "Sum"], conf_table["1", "Sum"], conf_table["Sum", "Sum"]),
+    check.names = FALSE
+  )
+
+  df_conf |>
+    kable(align = "c", format = "markdown", caption = titre) |>
+    kable_paper(full_width = FALSE) |>
+    column_spec(c(1, 2, 5), bold = TRUE) |>
+    row_spec(c(0, 3), bold = TRUE) |>
+    row_spec(0, color = "brown") |>
+    column_spec(2, color = "brown") |>
+    collapse_rows(columns = 1:2, valign = "top") |>
+    add_header_above(c(" " = 2, "Prédiction" = 3), bold = TRUE, line = FALSE)
+}
+conf_mat_result_dec<- conf_mat(dec_pred, truth = call, estimate = .pred_class)
+
+dec_conf_test <- conf_mat_result_dec$table
+matrice_confusion(conf_mat_result_dec, titre = "Matrice de confusion : Arbre de décision")
+```
+
+```{r}
+library(pROC)
+library(ggplot2)
+
+roc_dec <- roc(call_test$call, dec_pred$.pred_1)  
+
+#roc_graph_dec <- Courbe_roc(roc_dec) + mon_theme + carre_ggplot()
+#affichage_transparent(roc_graph_dec, height = 2, scale = 1, width = 3.5)
+```
+
+
+
+
+```{r}
+predictions <- predict(
+  dec_tree_fit$.workflow[[1]], 
+  new_data = call_train, 
+  type = "prob")
+
+predictions$.pred_class <- ifelse(predictions$.pred_1 > 0.5, 1, 0)
+
+dec_mat_conf_train <- data.frame(
+  Réalité = call_train$call,
+  Prédiction = predictions$.pred_class
+) |> table()
+
+perf_modele(dec_conf_test, dec_mat_conf_train, roc_dec, titre = "Performances du modèle : Arbre de décision")
+```
+
+
+Le modèle arbre de décision présente une sensibilité de 24.30%, la meilleure parmi les modèles testés jusqu'à présent, ce qui indique une meilleure capacité à identifier les candidats rappelés. Son F-score de 21.49% et son accuracy de 88.30% montrent qu'il parvient à classifier une majorité de cas, mais la performance pour prédire les candidats rappelés reste insuffisante, surtout comparée à ce qu'on pourrait espérer pour une prédiction plus fiable. Bien que l'accuracy soit élevée, elle est biaisée par le déséquilibre des classes, car le modèle classe facilement les candidats non rappelés.
+
+
+
+
+
+
+
+
+
+
+## Forêt Aléatoire
+
+La forêt aléatoire est un modèle basé sur un ensemble d'arbres de décision, chacun construit à partir de sous-ensembles aléatoires de données. Ce modèle est robuste et efficace pour traiter des données complexes. Ces performances dépendent principalement de deux paramètres à optimiser : le nombre d'arbres (trees) et le nombre de variables à utiliser pour chaque division (mtry).
+
+
+```{r}
+rf_spec <- rand_forest(mtry = tune(), trees = tune(), min_n = 1) |>
+  set_engine("ranger", importance = "impurity") |>
+  set_mode("classification")
+
+rec <- recipe(call ~ ., data = call_train) |>
+  step_center(all_numeric_predictors()) |>
+  step_scale(all_numeric_predictors()) |>
+  step_smotenc(over_ratio = tune(), skip = TRUE, neighbors = tune()) |>
+  step_downsample(call, under_ratio = 2) |> 
+  step_corr(all_numeric_predictors(), threshold = 0.9, method = "spearman") 
+```
+
+```{r}
+rf_wf <- workflow() %>%
+  add_recipe(rec) %>%
+  add_model(rf_spec)
+
+df_folds <- vfold_cv(call_train, v = 10, strata = call, repeats = 3)
+```
+
+```{r}
+rf_range_para <- extract_parameter_set_dials(rf_wf) |>
+  update(
+    mtry = mtry(c(4, 10)),
+    trees = trees(c(50, 2000)),
+    over_ratio = over_ratio(c(0.5, 1)),
+    neighbors = neighbors(c(3, 6))
+  )
+
+rf_grid <- grid_regular(
+  rf_range_para,
+  levels = c(mtry = 7, trees = 10, over_ratio = 4, neighbors = 3))
+```
+
+```{r}
+# Recherche des meilleurs paramètres
+n_core <- detectCores(logical = TRUE)
+registerDoParallel(cores = n_core - 1)
+```
+
+```{r}
+#rf_tune <- tune_grid(
+ # object = rf_wf,
+  #resamples = df_folds,
+  #grid = rf_grid,
+  #metrics = metric_set(
+   # roc_auc,
+    #accuracy,
+#    yardstick::precision,
+ #   sens,
+  #  spec,
+   # f_meas))
+```
+
+```{r}
+#stopImplicitCluster()
+```
+
+```{r}
+#save(rf_tune, file = "rf_tune.rda") 
+```
+
+```{r}
+#best_params_auc <- rf_tune %>%
+ # collect_metrics() %>%
+#  filter(.metric == "roc_auc") %>%
+#  arrange(desc(mean)) %>%
+ # dplyr::slice(1)
+
+#best_params_acc <- rf_tune %>%
+ # collect_metrics() %>%
+  #filter(.metric == "accuracy") %>%
+#  arrange(desc(mean)) %>%
+ # dplyr::slice(1)
+
+#best_params_f <- rf_tune %>%
+ # collect_metrics() %>%
+#  filter(.metric == "f_meas") %>%
+ # arrange(desc(mean)) %>%
+  #dplyr::slice(1)
+
+#save(rf_tune, file = "rf_tune.RData")
+```
+
+
+```{r}
+#rf_final_wf <- finalize_workflow(rf_wf, best_params_acc)
+#rf_fit <- rf_final_wf %>% last_fit(split = data_split)
+
+#save(rf_fit, file = "rf_fit.RData")
+```
+
+
+```{r}
+load("rf_tune.rda")
+load("rf_fit.RData")
+
+rf_pred <- rf_fit |> collect_predictions()
+```
+
+\vspace{12pt}
+
+**Optimisation des hyperparamètres :**  
+
+Le modèle Forêt Aléatoire a été optimisé en utilisant la métrique Accuracy.
+
+
+```{r}
+tibble(
+  Mtry = rf_fit$.workflow[[1]]$fit$fit$spec$args$mtry[[2]],
+  `Nombre d'arbres` = rf_fit$.workflow[[1]]$fit$fit$spec$args$trees[[2]],
+  `Min nodesize` = rf_fit$.workflow[[1]]$fit$fit$spec$args$min_n[[2]],
+  `Over-ratio` = rf_fit$.workflow[[1]]$pre$mold$blueprint$recipe$steps[[3]][["over_ratio"]],
+  `Neighbors` = rf_fit$.workflow[[1]]$pre$mold$blueprint$recipe$steps[[3]][["neighbors"]],
+) |> tableau_html(format = "markdown", titre = "Hyperparamètres retenus - Forêt Aléatoire", row.names = FALSE) |> 
+  row_spec(0, bold = T)
+```
+
+
+```{r, fig.align='center'}
+best_params_acc <- rf_tune %>%
+  collect_metrics() %>%
+  filter(.metric == "accuracy") %>%
+  arrange(desc(mean)) %>%
+  dplyr::slice(1)
+
+best_over <- best_params_acc$over_ratio
+best_neighbors <- best_params_acc$neighbors
+auto_tune_rf <- autoplot(rf_tune)
+
+
+plot_rf <- auto_tune_rf$plot_env$dat
+
+graph_auto_rf <- ggplot() +
+  geom_line(
+    data = plot_rf[
+      plot_rf$.metric == "accuracy" &
+      plot_rf$`Over-Sampling Ratio` == best_over &
+      plot_rf$`# Nearest Neighbors` == best_neighbors, ], 
+    aes(x = value, y = mean, color = `# Randomly Selected Predictors`), 
+    size = 1
+  ) +
+  mon_theme +
+  labs(
+    y = "Accuracy", 
+    x = "Nombre d'arbres", 
+    color = "Mtry", 
+    title = paste0("Optimisation des hyperparamètres : Forêt Aléatoire")
+  )
+
+affichage_transparent(graph_auto_rf,
+                      height = 3, 
+                      scale = 1,
+                      width = 6)
+```
+
+
+**Importance des variables :**
+
+```{r}
+rf_importance <- extract_fit_parsnip(rf_fit$.workflow[[1]]) |>
+  vip(num_feature = 20) +
+  geom_col(fill = "darkgoldenrod") +
+  mon_theme +
+  labs(title = "Importance des variables") +
+  mon_theme
+
+affichage_transparent(rf_importance, 
+                      height = 4, 
+                      scale = 1,
+                      width = 6)
+```
+
+Le graphique d’importance des variables montre la contribution de chaque variable aux prédictions du modèle.
+On constate que le nombre d’années d’expérience professionnelle est le facteur le plus déterminant dans la décision de rappel des recruteurs, suivi du secteur d’activité de l’employeur (industry), du type de poste recherché (wanted) et du nombre d’emplois mentionnés sur le CV (jobs). Ces quatre variables jouent un rôle central dans la décision du recruteur de recontacter ou non un candidat.
+
+\newpage
+
+**Performances du modèle :**
+
+```{r}
+matrice_confusion <- function(conf_mat_result, titre = "Matrice de confusion") {
+  conf_df <- as.data.frame(conf_mat_result$table)
+  conf_table <- xtabs(Freq ~ Prediction + Truth, data = conf_df)
+  conf_table <- addmargins(conf_table)
+
+  df_conf <- data.frame(
+    " " = c("Réalité", "Réalité", " "), 
+    " " = c("0", "1", "Total"),
+    "0" = c(conf_table["0", "0"], conf_table["1", "0"], conf_table["Sum", "0"]),
+    "1" = c(conf_table["0", "1"], conf_table["1", "1"], conf_table["Sum", "1"]),
+    "Total" = c(conf_table["0", "Sum"], conf_table["1", "Sum"], conf_table["Sum", "Sum"]),
+    check.names = FALSE
+  )
+
+  df_conf |>
+    kable(align = "c", format = "markdown", caption = titre) |>
+    kable_paper(full_width = FALSE) |>
+    column_spec(c(1, 2, 5), bold = TRUE) |>
+    row_spec(c(0, 3), bold = TRUE) |>
+    row_spec(0, color = "brown") |>
+    column_spec(2, color = "brown") |>
+    collapse_rows(columns = 1:2, valign = "top") |>
+    add_header_above(c(" " = 2, "Prédiction" = 3), bold = TRUE, line = FALSE)
+}
+conf_mat_result_rf<- conf_mat(rf_pred, truth = call, estimate = .pred_class)
+
+rf_conf_test <- conf_mat_result_rf$table
+matrice_confusion(conf_mat_result_rf, titre = "Matrice de confusion : Forêt Aléatoire")
+```
+
+
+
+```{r}
+roc_rf <- roc(call_test$call, rf_pred$.pred_1)
+
+#roc_graph_rf <- Courbe_roc(roc_rf) + mon_theme + carre_ggplot()
+#affichage_transparent(roc_graph_rf,  height = 2,  scale = 1, width = 3.5)
+```
+
+
+```{r}
+predictions <- predict(
+  rf_fit$.workflow[[1]], 
+  new_data = call_train, 
+  type = "prob")
+
+predictions$.pred_class <- ifelse(predictions$.pred_1 > 0.5, 1, 0)
+
+rf_mat_conf_train <- data.frame(
+  Réalité = call_train$call,
+  Prédiction = predictions$.pred_class
+) |> table()
+
+
+
+rf_result_test <- Collecte_mesure(rf_conf_test, rf_mat_conf_train, roc_rf) |> round(4)
+
+rf_result_test <- sprintf("%.2f%%", rf_result_test * 100)
+
+rf_tbl <- tibble(
+  `Précision` = rf_result_test[1],
+  `Spécificité` = rf_result_test[2],
+  `Taux de faux positifis` = rf_result_test[3],
+  `Taux de faux négatifs` = rf_result_test[4],
+  `Sensibilité` = rf_result_test[5],
+  `F-score` = rf_result_test[6],
+  `Erreurs OOB` =sprintf(
+    "%.2f%%", 
+    round(rf_fit$.workflow[[1]][["fit"]][["fit"]][["fit"]][["prediction.error"]],4) * 100),
+  `Taux d'erreur en test` = rf_result_test[7],
+  `Taux d'erreur en entraînement` = rf_result_test[8],
+  `AUC` = rf_result_test[9],
+  `Accuracy` = rf_result_test[10]
+) |>
+  t() 
+
+rf_tbl |>
+  tableau_html(
+    row.names = TRUE, 
+    titre = "Performances du modèle : Random Forest", 
+    format = "markdown"
+  ) |>
+  column_spec(1, bold = TRUE, italic = TRUE)|> 
+    footnote(
+      number = c(
+        "Taux de faux positifs : Proportion des candidats prédits comme rappelés alors qu'ils ne l'ont pas été.",
+        "Taux de faux négatifs : Proportion des candidats prédits comme non rappelés alors qu'ils l'ont pas été."
+           )) 
+```
+
+
+La forêt aléatoire présente une meilleure précision (28.15%) par rapport à l'arbre de décision, mais ce dernier affiche une sensibilité plus élevée (24.30%) et un F-score de 21.49%, ce qui montre qu'il est légèrement plus efficace pour identifier les candidats rappelés. L'erreur OOB (20.20%) de la forêt aléatoire suggère qu'elle généralise bien sur des données non vues, bien que sa capacité à prédire correctement les candidats rappelés reste limitée. On s'attendait à ce que la forêt aléatoire surpasse l'arbre de décision en raison de sa capacité à combiner plusieurs arbres, mais le déséquilibre des classes semble avoir un impact plus important, réduisant ainsi son efficacité à prédire les candidats rappelés.
+
+
+
+
+
+
+## Boosting
+
+Place maintenant au dernier modèle étudié, le boosting, un modèle d'ensemble qui combine plusieurs modèles faibles, généralement des arbres de décision, afin de créer une prédiction plus robuste et précise. Ce modèle est particulièrement efficace pour améliorer les performances en se concentrant sur les erreurs commises lors des itérations précédentes. Le boosting peut être sensible au bruit et aux valeurs aberrantes, car il met fortement l'accent sur les erreurs précédemment commises, ce qui peut entraîner un surapprentissage si le modèle n'est pas bien régularisé. Les paramètres clés à optimiser pour ce modèle incluent le nombre d'arbres (trees), la profondeur des arbres (depth), le taux d'apprentissage (learning_rate) et le nombre de variables à utiliser pour chaque division (mtry). 
+
+
+```{r}
+library(future)
+library(parallel)
+library(doParallel)
+library(tune)
+library(xgboost)
+library(tidymodels)
+library(yardstick)
+
+plan(multisession, workers = 14)  
+
+n_core <- detectCores(logical = TRUE) 
+registerDoParallel(cores = n_core - 1)  
+
+boost_spec <- boost_tree(
+  trees = tune(), tree_depth = tune(),
+  learn_rate = tune(), mtry = tune()) %>%
+  set_engine("xgboost", tree_method = "hist", 
+             lambda = 1, alpha = 0.5)%>%  
+  set_mode("classification")
+
+boost_rec <- recipe(call ~ ., data = call_train) %>%
+  step_center(all_numeric_predictors()) %>%
+  step_scale(all_numeric_predictors()) %>%
+  step_smotenc(call, over_ratio = tune(), neighbors = tune()) %>%
+  step_dummy(all_nominal_predictors())
+
+boost_wf <- workflow() %>% add_recipe(boost_rec) %>% add_model(boost_spec)
+
+df_folds <- vfold_cv(call_train, v = 10, strata = call, repeats = 3)
+```
+
+```{r}
+library(tidyr)
+library(dplyr)
+
+grid_sans_lr <- extract_parameter_set_dials(boost_wf) %>%
+  update(
+    trees = trees(c(50, 1000)),
+    tree_depth = tree_depth(c(1, 15)),
+    mtry = mtry(c(4, 10)),
+    over_ratio = over_ratio(c(0.8, 1.3)),
+    neighbors = neighbors(c(3, 5))
+  ) %>%
+  dplyr::filter(id != "learn_rate") %>%  
+  grid_regular(levels = c(trees = 5, tree_depth = 3, mtry = 3, over_ratio = 4, neighbors = 2))
+  
+
+learn_rates <- c(0.0001, 0.001, 0.01)
+
+boost_grid <- grid_sans_lr %>%
+  dplyr::mutate(learn_rate = sample(learn_rates, size = n(), replace = TRUE))  
+```
+
+
+```{r}
+#boost_tune <- tune_grid(
+#  object = boost_wf,
+  #resamples = df_folds, 
+ # grid = boost_grid, 
+#  metrics = metric_set(roc_auc, accuracy, yardstick::precision, sens,  spec, f_meas),
+ # control = control_grid(parallel_over = "everything" ))
+```
+
+```{r}
+#stopImplicitCluster()
+
+#save(boost_tune, file = "boosting_tune_res.rda")
+```
+
+
+```{r}
+#best_params_auc <- boost_tune %>%
+ # collect_metrics() %>%
+  #filter(.metric == "roc_auc") %>%
+#  arrange(desc(mean)) %>%
+ # slice_head(n=1)
+
+#best_params_acc <- boost_tune %>%
+#  collect_metrics() %>%
+ # filter(.metric == "accuracy") %>%
+  #arrange(desc(mean)) %>%
+#  slice_head(n=1)
+
+#best_params_f <- boost_tune %>%
+#  collect_metrics() %>%
+ # filter(.metric == "f_meas") %>%
+  #arrange(desc(mean)) %>%
+  #slice_head(n=1)
+
+#save(boost_tune, file = "boosting_tune.RData")
+```
+
+
+```{r}
+#boost_final_wf <- finalize_workflow(boost_wf, best_params_auc)
+#boost_fit <- boost_final_wf %>% last_fit(split = data_split)
+
+#save(boost_fit, file = "boosting_fit.RData")
+```
+
+
+```{r}
+load("boosting_tune_res.rda")
+load("boosting_fit.RData")
+
+boost_pred <- boost_fit |> collect_predictions()
+```
+
+\vspace{12pt}
+
+**Optimisation des hyperparamètres :** 
+
+Le modèle Boosting a été optimisé en utilisant la métrique ROC-AUC.
+
+```{r}
+tibble(
+  `Mtry` = boost_fit[[6]][[1]][["fit"]][["fit"]][["spec"]][["args"]][["mtry"]][[2]],
+  `Nombre d'arbres` = boost_fit[[6]][[1]][["fit"]][["fit"]][["spec"]][["args"]][["trees"]][[2]],
+  `Profondeur d'arbre` = boost_fit[[6]][[1]][["fit"]][["fit"]][["spec"]][["args"]][["tree_depth"]][[2]],
+  `Taux d'apprentissage` = boost_fit[[6]][[1]][["fit"]][["fit"]][["spec"]][["args"]][["learn_rate"]][[2]],
+  `Taux de re-échantillonnage` = boost_fit[[6]][[1]][["pre"]][["actions"]][["recipe"]][["recipe"]][["steps"]][[1]][["over_ratio"]],
+  `Nombres de voisins utilisé` = boost_fit[[6]][[1]][["pre"]][["actions"]][["recipe"]][["recipe"]][["steps"]][[1]][["neighbors"]]
+) |> tableau_html(titre = "Hyperparamètres retenus - Boosting", format = "markdown", row.names = FALSE) |> 
+  row_spec(0, bold = TRUE)
+```
+
+\vspace{16pt}
+
+**Importances des variables :**
+
+```{r, fig.align='center'}
+graph_importance_boosting <- extract_fit_parsnip(boost_fit$.workflow[[1]]) |>
+  vip(num_feature = 12) +
+  geom_col(fill = "darkgoldenrod") +
+  labs(title = "Importances des variables") +
+  mon_theme
+
+affichage_transparent(graph_importance_boosting, 
+                      height = 3, 
+                      scale = 1,
+                      width = 6)
+```
+
+On remarque que les variables qui influencent le plus la décision de rappel du recruteur sont le nombre d’emplois listés sur le CV (jobs), le nombre d’années d’expérience (experience) et l’origine perçue du candidat à travers son prénom, notamment lorsqu’il est à consonance afro-américaine (ethnicity = afam).
+
+\vspace{16pt}
+
+**Performances du modèle :**
+
+```{r}
+matrice_confusion <- function(conf_mat_result, titre = "Matrice de confusion") {
+
+  conf_df <- as.data.frame(conf_mat_result$table)
+
+  conf_table <- xtabs(Freq ~ Prediction + Truth, data = conf_df)
+
+  conf_table <- addmargins(conf_table)
+
+  df_conf <- data.frame(
+    " " = c("Réalité", "Réalité", " "), 
+    " " = c("0", "1", "Total"),
+    "0" = c(conf_table["0", "0"], conf_table["1", "0"], conf_table["Sum", "0"]),
+    "1" = c(conf_table["0", "1"], conf_table["1", "1"], conf_table["Sum", "1"]),
+    "Total" = c(conf_table["0", "Sum"], conf_table["1", "Sum"], conf_table["Sum", "Sum"]),
+    check.names = FALSE
+  )
+
+  df_conf |>
+    kable(align = "c", format = "markdown", caption = titre) |>
+    kable_paper(full_width = FALSE) |>
+    column_spec(c(1, 2, 5), bold = TRUE) |>
+    row_spec(c(0, 3), bold = TRUE) |>
+    row_spec(0, color = "brown") |>
+    column_spec(2, color = "brown") |>
+    collapse_rows(columns = 1:2, valign = "top") |>
+    add_header_above(c(" " = 2, "Prédiction" = 3), bold = TRUE, line = FALSE)
+}
+conf_mat_result_boost<- conf_mat(boost_pred, truth = call, estimate = .pred_class)
+
+boost_conf_test <- conf_mat_result_boost$table
+matrice_confusion(conf_mat_result_boost, titre = "Matrice de confusion : Boosting")
+```
+
+```{r}
+roc_boost <- roc(call_test$call, boost_pred$.pred_1)
+
+#roc_graph_boost <- Courbe_roc(roc_boost) + mon_theme + carre_ggplot()
+#affichage_transparent(roc_graph_boost, height = 2,  scale = 1, width = 3.5)
+```
+
+\newpage
+
+```{r}
+ boost_pred_train <- predict(
+  boost_fit$.workflow[[1]], 
+  new_data = call_train, 
+  type = "prob"
+)
+
+boost_pred_train$.pred_class <- ifelse(boost_pred_train$.pred_1 > 0.5, 1, 0)
+
+boost_mat_conf_train <- data.frame(
+  Réalité = call_train$call,
+  Prédiction = boost_pred_train$.pred_class
+) |> table()
+
+boost_conf_mat_test <- data.frame(
+  Réalité = call_test$call,
+  Prédiction = boost_fit$.predictions[[1]]$.pred_class
+) |> table()
+
+perf_modele(
+  boost_conf_test,
+  boost_mat_conf_train,
+  roc_boost,
+  format = "markdown",
+  titre = "Performances du modèle : Boosting"
+)
+```
+
+Le modèle de boosting montre de faibles performances pour prédire les candidats rappelés, avec une sensibilité de 16.34% et un F-score de 17.36%, indiquant qu’il en identifie peu correctement. En comparaison, l’arbre de décision, bien que limité, se révèle plus performant pour cet objectif, ce qui en fait un choix relativement plus adapté à la détection des rappels dans ce contexte.
+
+
+
+\vspace{18pt}
+
+# Comparaison des modèles étudiés
+
+## Courbes ROC des différents modèles
+```{r, fig.align='center'}
+comparaison_roc <- data.frame(
+  Modeles = rep(c(
+    "Boosting", 
+    "QDA", 
+    "LDA", 
+    "KNN", 
+    "SVM Linéaire", 
+    "Logit", 
+    "SVM Radial", 
+    "Forêt Aléatoire", 
+    "Arbre de décision"),
+    times = c(
+      length(roc_boost$thresholds),
+      length(roc_qda$thresholds),
+      length(roc_lda$thresholds),
+      length(roc_knn$thresholds),
+      length(roc_svmlin$thresholds),
+      length(roc_logit$thresholds),
+      length(roc_svmr$thresholds),
+      length(roc_rf$thresholds),
+      length(roc_dec$thresholds)
+    )
+  ),
+  specificité = c(
+    roc_boost$specificities,
+    roc_qda$specificities,
+    roc_lda$specificities,
+    roc_knn$specificities,
+    roc_svmlin$specificities,
+    roc_logit$specificities,
+    roc_svmr$specificities,
+    roc_rf$specificities,
+    roc_dec$specificities
+  ),
+  sensibilité = c(
+    roc_boost$sensitivities,
+    roc_qda$sensitivities,
+    roc_lda$sensitivities,
+    roc_knn$sensitivities,
+    roc_svmlin$sensitivities,
+    roc_logit$sensitivities,
+    roc_svmr$sensitivities,
+    roc_rf$sensitivities,
+    roc_dec$sensitivities
+  )
+) |>
+  ggplot(aes(x = specificité, y = sensibilité, color = Modeles)) +
+  geom_line() +
+  mon_theme +
+  geom_segment(aes(x = 0, xend = 1, y = 1, yend = 0), color = "black", linetype = "dotted") +
+  scale_color_discrete(name = "Modèles") +
+  scale_x_continuous(trans = "reverse") +
+  coord_cartesian(ylim = c(0, 1)) +
+  labs(x = "1-spécificité")
+
+affichage_transparent(comparaison_roc, 
+                      height = 4, 
+                      scale = 1,
+                      width = 6)
+```
+
+
+\newpage
+
+## Comparaison des performances des modèles
+```{r}
+result_lda <- Collecte_mesure(lda_mat_conf, lda_mat_conf_train, roc_lda) |> t()
+result_qda <- Collecte_mesure(qda_conf_test, qda_mat_conf_train, roc_qda) |> t()
+result_knn <- Collecte_mesure(knn_conf_test, knn_mat_conf_train, roc_knn) |> t()
+result_svmlin <- Collecte_mesure(svmlin_conf_test, svmlin_mat_conf_train, roc_svmlin) |> t()
+result_svmr <- Collecte_mesure(svmr_conf_test, svmr_mat_conf_train, roc_svmr) |> t()
+result_logit <- Collecte_mesure(logit_conf_test, logit_mat_conf_train, roc_logit) |> t()
+result_dec_tree <- Collecte_mesure(dec_conf_test, dec_mat_conf_train, roc_dec) |> t()
+result_rf <- Collecte_mesure(rf_conf_test, rf_mat_conf_train, roc_rf) |> t()
+result_boost <- Collecte_mesure(boost_conf_mat_test, boost_mat_conf_train, roc_boost) |> t()
+
+mesure_perf_lda <- cbind(
+  result_lda[1],
+  result_lda[5],
+  result_lda[6],
+  result_lda[9],
+  result_lda[10]
+)
+colnames(mesure_perf_lda) <- c("Précision", "Sensibilité", "F_score", "AUC", "Accuracy")
+rownames(mesure_perf_lda) <- "LDA"
+
+mesure_perf_qda <- cbind(result_qda[1], result_qda[5], result_qda[6], result_qda[9], result_qda[10])
+colnames(mesure_perf_qda) <- c("Précision", "Sensibilité", "F_score", "AUC", "Accuracy")
+rownames(mesure_perf_qda) <- "QDA"
+
+mesure_perf_knn <- cbind(result_knn[1], result_knn[5], result_knn[6], result_knn[9], result_knn[10])
+colnames(mesure_perf_knn) <- c("Précision", "Sensibilité", "F_score", "AUC", "Accuracy")
+rownames(mesure_perf_knn) <- "KNN"
+
+mesure_perf_svmlin <- cbind(result_svmlin[1], result_svmlin[5], result_svmlin[6], result_svmlin[9], result_svmlin[10])
+colnames(mesure_perf_svmlin) <- c("Précision", "Sensibilité", "F_score", "AUC", "Accuracy")
+rownames(mesure_perf_svmlin) <- "SVM Linéaire"
+
+mesure_perf_svmr <- cbind(result_svmr[1], result_svmr[5], result_svmr[6], result_svmr[9], result_svmr[10])
+colnames(mesure_perf_svmr) <- c("Précision", "Sensibilité", "F_score", "AUC", "Accuracy")
+rownames(mesure_perf_svmr) <- "SVM Radial"
+
+mesure_perf_logit <- cbind(result_logit[1], result_logit[5], result_logit[6], result_logit[9], result_logit[10])
+colnames(mesure_perf_logit) <- c("Précision", "Sensibilité", "F_score", "AUC", "Accuracy")
+rownames(mesure_perf_logit) <- "Logit"
+
+mesure_perf_dec_tree <- cbind(result_dec_tree[1], result_dec_tree[5], result_dec_tree[6], result_dec_tree[9], result_dec_tree[10])
+colnames(mesure_perf_dec_tree) <- c("Précision", "Sensibilité", "F_score", "AUC", "Accuracy")
+rownames(mesure_perf_dec_tree) <- "Arbre de décision"
+
+mesure_perf_rf <- cbind(result_rf[1], result_rf[5], result_rf[6], result_rf[9], result_rf[10])
+colnames(mesure_perf_rf) <- c("Précision", "Sensibilité", "F_score", "AUC", "Accuracy")
+rownames(mesure_perf_rf) <- "Forêt Aléatoire"
+
+mesure_perf_boost <- cbind(result_boost[1], result_boost[5], result_boost[6], result_boost[9], result_boost[10])
+colnames(mesure_perf_boost) <- c("Précision", "Sensibilité", "F_score", "AUC", "Accuracy")
+rownames(mesure_perf_boost) <- "Boosting"
+
+toutes_perf <- rbind(mesure_perf_lda, mesure_perf_qda, mesure_perf_knn, mesure_perf_svmlin, 
+                     mesure_perf_svmr, mesure_perf_logit, mesure_perf_dec_tree, mesure_perf_rf, mesure_perf_boost) 
+
+toutes_perf |>
+  tableau_html(format = "markdown", row.names = TRUE) |> 
+  row_spec(0, bold = TRUE) |> 
+  column_spec(1, bold = TRUE) |> 
+  column_spec(2, color = ifelse(toutes_perf[,1] == max(toutes_perf[,1]), "green", ifelse(toutes_perf[,1] == min(toutes_perf[,1]), "red", "black"))) |> 
+  column_spec(3, color = ifelse(toutes_perf[,2] == max(toutes_perf[,2]), "green", ifelse(toutes_perf[,2] == min(toutes_perf[,2]), "red", "black"))) |>
+  column_spec(4, color = ifelse(toutes_perf[,3] == max(toutes_perf[,3]), "green", ifelse(toutes_perf[,3] == min(toutes_perf[,3]), "red", "black"))) |>
+  column_spec(5, color = ifelse(toutes_perf[,4] == max(toutes_perf[,4]), "green", ifelse(toutes_perf[,4] == min(toutes_perf[,4]), "red", "black"))) |>
+  column_spec(6, color = ifelse(toutes_perf[,5] == max(toutes_perf[,5]), "green", ifelse(toutes_perf[,5] == min(toutes_perf[,5]), "red", "black")))
+```
+
+Les modèles linéaires comme LDA et logistique offrent un bon compromis entre précision, F-score et AUC, mais restent limités en sensibilité. Parmi les approches non linéaires, l’arbre de décision se distingue avec les meilleures performances, notamment en termes de F-score et de sensibilité. Bien qu’il n’offre pas des résultats exceptionnels, l’arbre de décision reste le modèle le plus efficace pour prédire les candidats rappelés, avec la meilleure accuracy.
+
+
+
+
+
+\vspace{18pt}
+
+# Optimisation de l'Arbre de décision
+
+## Ajustement du seuil de classification
+
+L’objectif du modèle est de prédire si un candidat sera rappelé à partir des informations contenues dans son CV.
+
+Ce problème de classification binaire nécessite un compromis entre deux objectifs importants :
+
+- **Maximiser la sensibilité (Recall)** : détecter un maximum de candidats qui seront réellement rappelés.
+- **Maximiser la précision (Precision)** : éviter de prédire à tort qu’un candidat sera rappelé, afin de limiter les coûts associés à un traitement inutile de candidatures non retenues.
+
+Pour atteindre cet équilibre, une méthode efficace consiste à ajuster le seuil de classification.
+
+En pratique, le modèle assigne à chaque candidat une probabilité prédite d’être rappelé. Par défaut, un candidat est classé comme "rappelé" si cette probabilité dépasse un certain seuil \(\theta\). Toutefois, ce seuil peut être ajusté pour mieux répondre aux priorités opérationnelles :
+
+- Un seuil plus bas augmente la **sensibilité**, mais peut faire baisser la **précision**.
+- Un seuil plus élevé améliore la **précision**, mais peut diminuer la **sensibilité**.
+
+La règle de décision devient donc :
+
+$$
+\text{Si } P(\text{call} = 1 \mid X_i = x) > \text{seuil optimisé}, \text{ alors le candidat est prédit comme rappelé.}
+$$
+
+L’ajustement du seuil permet ainsi de contrôler finement le comportement du modèle, en fonction du compromis souhaité entre rappel et précision, en lien direct avec les enjeux du recruteur.
+
+
+```{r}
+load("dec_tree_fit.RData")
+
+mesure_perf_tree_thresh <- NULL
+range_threshold <- seq(0.01, 0.3, 0.01)
+
+for (i in range_threshold) {
+  tree_pred_thresh <- predict(dec_tree_fit$.workflow[[1]], new_data = call_test, type = "prob")
+  tree_pred_thresh$.pred_class <- ifelse(tree_pred_thresh$.pred_1 > i, 1, 0)
+
+  tree_conf_mat_thresh <- table(
+    Réalité = factor(call_test$call, levels = c(0, 1)),
+    Prédiction = factor(tree_pred_thresh$.pred_class, levels = c(0, 1))
+  )
+
+  roc_tree_thresh <- roc(call_test$call, tree_pred_thresh$.pred_1)
+  result_thresh <- Collecte_mesure(tree_conf_mat_thresh, NULL, roc_tree_thresh) |> t()
+  mesure_perf_tree_thresh <- rbind(
+    mesure_perf_tree_thresh,
+    cbind(result_thresh[1], result_thresh[5], result_thresh[6], result_thresh[9], i)
+  )
+}
+
+colnames(mesure_perf_tree_thresh) <- c("Précision", "Sensibilité", "F_score", "Accuracy", "threshold")
+mesure_perf_tree_thresh <- as.data.frame(mesure_perf_tree_thresh)
+
+mesure_perf_tree_thresh <- mesure_perf_tree_thresh |>
+  mutate(Moyenne = (as.numeric(Précision) + as.numeric(Sensibilité) + as.numeric(F_score) + as.numeric(Accuracy)) / 4)
+```
+
+```{r, fig.align='center'}
+seuil_optimal <- mesure_perf_tree_thresh$threshold[which.max(mesure_perf_tree_thresh$Moyenne)]
+
+graph_mesure_tree <- ggplot(data = mesure_perf_tree_thresh) +
+  geom_line(aes(x = threshold, y = Sensibilité, color = "Sensibilité"), size = 1) +
+  geom_line(aes(x = threshold, y = Précision, color = "Précision"), size = 1) +
+  geom_line(aes(x = threshold, y = F_score, color = "F_score"), size = 1) +
+  geom_line(aes(x = threshold, y = Accuracy, color = "Accuracy"), size = 1) +
+  geom_vline(xintercept = seuil_optimal, linetype = "dashed", color = "black") +
+  annotate("text", x = seuil_optimal, y = 0.95, 
+           label = paste("Seuil optimal :", round(seuil_optimal, 2)), 
+           hjust = 0, vjust = 1, size = 2.5) +
+  labs(
+    title = "Évolution des performances selon le seuil",
+    x = "Seuil de classification",
+    y = "Valeur des métriques",
+    color = "Mesure"
+  ) +
+  scale_color_manual(values = c(
+    "Sensibilité" = "blue",
+    "Précision" = "red",
+    "F_score" = "green",
+    "Accuracy" = "gold"
+  )) +
+  mon_theme  
+
+affichage_transparent(graph_mesure_tree, height = 3, width = 6, scale = 1)
+```
+
+
+## Seuil de classification optimal
+```{r}
+mesure_perf_tree_thresh <- data.frame(mesure_perf_tree_thresh)
+
+mesure_perf_tree_thresh <- mesure_perf_tree_thresh |>
+  mutate(Moyenne = (Sensibilité + Précision + F_score + Accuracy) / 4)
+
+mesure_perf_tree_thresh <- mesure_perf_tree_thresh |>
+  arrange(desc(Moyenne)) |>
+  head(5)
+
+mesure_perf_tree_thresh |> 
+  tableau_html(titre = "Meilleurs seuils de classification (Arbre de décision)", format = "markdown", row.names = FALSE) |> 
+  row_spec(0, bold = TRUE) |> 
+  column_spec(1, color = ifelse(mesure_perf_tree_thresh[,1] == max(mesure_perf_tree_thresh[,1]), "green", "black")) |> 
+  column_spec(2, color = ifelse(mesure_perf_tree_thresh[,2] == max(mesure_perf_tree_thresh[,2]), "green", "black")) |> 
+  column_spec(3, color = ifelse(mesure_perf_tree_thresh[,3] == max(mesure_perf_tree_thresh[,3]), "green", "black")) |> 
+  column_spec(4, color = ifelse(mesure_perf_tree_thresh[,4] == max(mesure_perf_tree_thresh[,4]), "green", "black")) |> 
+  column_spec(6, color = ifelse(mesure_perf_tree_thresh[,6] == max(mesure_perf_tree_thresh[,6]), "green", "black"))
+```
+
+
+
+Le seuil de 0.23 et 0.24 semblent être les meilleurs choix qui combine le mieux les performances que nous souhaitons optimiser, car ils offrent les meilleures valeurs de moyenne (0.3589), avec un bon compromis entre précision, sensibilité, F-score et accuracy. Ces seuils optimisent globalement les performances tout en maintenant une bonne sensibilité et un F-score raisonnable.
+
+
+
+
+\newpage
+
+# Conclusion
+
+Parmi tous les modèles testés, l'arbre de décision s'est distingué comme étant le plus performant pour prédire les candidats susceptibles d'être rappelés après la soumission de leur CV à une offre d'emploi. Ce modèle offre la meilleure sensibilité (0,2430), le meilleur F1-score (0,2149) et l'accuracy la plus élevée (0,8830), ce qui en fait le choix optimal pour notre étude. Cependant, malgré cette performance relative, il est important de noter que tous les modèles, y compris l'arbre de décision, présentent des résultats globalement insatisfaisants, ce qui peut être attribué au déséquilibre important des classes entre les candidats rappelés et non rappelés. Ce déséquilibre rend difficile la prédiction fiable de la classe minoritaire (les candidats rappelés), malgré l'optimisation du modèle.
+
+
+\vspace{12pt}
+
+```{r}
+tableau_html <- function(
+    x, titre = NULL, digit = 4, align = "c", escape = TRUE, format = "html",
+    style_police = "Roboto", col.names = colnames(x), row.names = TRUE, zoom = 1,
+    small = FALSE, ...) {
+  table <- x |>
+    kable(
+      caption = titre, align = align, format = format, digits = digit,
+      escape = escape, col.names = col.names, row.names = row.names, ...
+    )
+  if (small) {
+    table <- table |>
+      kable_styling(full_width = FALSE,
+        latex_options = c("hold_position", "scale_down", "longtable")
+      )
+  }
+  table <- table |>
+    kable_material(
+      lightable_options = c("striped", "hover"),
+      html_font = style_police,
+      ...
+    )
+
+  return(table)
+}
+
+
+tibble(
+  `Coût de complexité` = formatC(
+    quo_get_expr(dec_tree_fit[[6]][[1]][["fit"]][["actions"]][["model"]][["spec"]][["args"]][["cost_complexity"]]),
+    format = "e", digits = 2
+  ),
+  `Taux de re-échantillonnage` = dec_tree_fit[[6]][[1]][["pre"]][["actions"]][["recipe"]][["recipe"]][["steps"]][[3]][["over_ratio"]],
+  `Nombres de voisins utilisé` = dec_tree_fit[[6]][[1]][["pre"]][["actions"]][["recipe"]][["recipe"]][["steps"]][[3]][["neighbors"]]
+) |> 
+  tableau_html(titre = "Hyperparamètres retenus : Arbre de décision", format = "markdown", row.names = FALSE) |> 
+  row_spec(0, bold = TRUE)
+```
+
+\vspace{12pt}
+
+```{r}
+predictions <- predict(
+  dec_tree_fit$.workflow[[1]], 
+  new_data = call_train, 
+  type = "prob")
+
+predictions$.pred_class <- ifelse(predictions$.pred_1 > 0.5, 1, 0)
+
+dec_mat_conf_train <- data.frame(
+  Réalité = call_train$call,
+  Prédiction = predictions$.pred_class
+) |> table()
+
+perf_modele(dec_conf_test, dec_mat_conf_train, roc_dec, titre = "Performances du modèle : Arbre de décision")
+```
+
+
+\newpage
+
+# Annexes
+
+## Coefficients Obtenus (Logit)
+
+```{r}
+coef_logit <- tidy(final_logit_fit$.workflow[[1]])
+coef_sign <- coef_logit[coef_logit$p.value < 0.05 & !is.na(coef_logit$estimate),]
+coef_sign$estimate <- as.numeric(coef_sign$estimate)  
+
+odds_ratio <- cbind(
+  coef_sign$term,
+  round(coef_sign$estimate, 3),  
+  round(exp(coef_sign$estimate), 3),  
+  format(coef_sign$p.value, scientific = TRUE, digits = 2)  
+)
+colnames(odds_ratio) <- c("Variables", "Coef", "Odds Ratios", "P-value")
+
+odds_ratio |>
+  tableau_html(titre = "Coefficients significatifs", row.names = FALSE, format = "markdown") |>
+  row_spec(0, bold = TRUE) |>
+  column_spec(1, bold = TRUE)
+```
+
+Les résultats obtenues montrent que les principaux facteurs augmentant les chances d’être rappelé par le recruteur sont le nombre d'années d'expérience de travail (experience), être une femme (gender_femmale), avoir un CV de qualité (quality_high), des distinctions (honors_yes), des compétences particulières (special_yes), au minimum un diplôme universitaire (college_yes), avoir eu une péridode d'inactivité (holes_yes), une experience professionnelle pendant les études (school_yes), la correspondance avec les exigences d'expérience du poste (reqexp_yes), ainsi que le fait que l'employeur appartienne aux secteurs de la santé, de l'éducation ou des services sociaux (industry). 
+
+En revanche les autres varaibles mentionnés dans le tableau présentant un coefficient négatif comme avoir un prénom à cononance afor-américaine (ethnicity_afam) diminue les chances d'un candidat d'être rappelé. 
+
+\newpage
+
+## Recette des Modèles 
+
+***LDA***
+```{r, echo=TRUE}
+lda_recipe <- recipe(call ~ ., data = call_train) %>%
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
+  step_zv(all_predictors()) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_smotenc(call, over_ratio = tune(), neighbors = tune()) %>%
+  step_corr(all_numeric_predictors(), threshold = 0.9)
+```
+
+***QDA***
+```{r, echo=TRUE}
+qda_recipe <- recipe(call ~ ., data = call_train) %>%
+  step_smotenc(call, over_ratio = tune(), neighbors = tune()) %>%
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
+  step_zv(all_predictors()) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_pca(all_numeric_predictors(), threshold = 0.9)   
+```
+
+***KNN***
+```{r, echo=TRUE}
+knn_recipe <- recipe(call ~ ., data = call_train) %>%
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
+  step_zv(all_predictors()) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_smotenc(call, over_ratio = tune(), neighbors = tune()) %>%
+  step_corr(all_numeric_predictors(), threshold = 0.9)
+```
+
+
+
+***SVM Radial***
+```{r, echo=TRUE}
+svmr_rec <- recipe(call ~ ., data = call_train) |>
+  step_center(all_numeric_predictors()) |>
+  step_scale(all_numeric_predictors()) |>
+  step_smotenc(call, over_ratio = tune(), neighbors = tune()) |>
+  step_downsample(call, under_ratio = 1) |>
+  step_dummy(all_nominal_predictors())|>
+  step_corr(all_numeric_predictors(), threshold = 0.9, method = "spearman")
+```
+
+
+***SVM Linéaire***
+```{r, echo=TRUE}
+svmlin_rec <- recipe(call ~ ., data = call_train) |>
+  step_center(all_numeric_predictors()) |>
+  step_scale(all_numeric_predictors()) |>
+  step_smotenc(call, over_ratio = tune(), neighbors = tune()) |>
+  step_dummy(all_nominal_predictors())  |>
+  step_corr(all_numeric_predictors(), threshold = 0.9, method = "spearman") 
+```
+
+
+***Régression Logistique***
+```{r, echo=TRUE}
+logit_recipe <- recipe(call ~ ., data = call_train) %>%
+  step_dummy(all_nominal_predictors(), one_hot = TRUE) %>%
+  step_zv(all_predictors()) %>%
+  step_smotenc(call, over_ratio = tune(), neighbors = tune()) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_corr(all_numeric_predictors(), threshold = 0.9)
+```
+
+***Arbre de décsion***
+```{r, echo=TRUE}
+data_rec <- call_train |>
+  recipe(call ~ ., strata = call) |>
+  step_center(all_numeric_predictors()) |>
+  step_scale(all_numeric_predictors()) |>
+  step_smotenc(call, over_ratio = tune(), neighbors =tune() ) |>
+  step_corr(all_numeric_predictors(), threshold = 0.9, method = "spearman") 
+```
+
+
+***Forêt Aléatoire***
+```{r, echo=TRUE}
+rec <- recipe(call ~ ., data = call_train) |>
+  step_center(all_numeric_predictors()) |>
+  step_scale(all_numeric_predictors()) |>
+  step_smotenc(over_ratio = tune(), skip = TRUE, neighbors = tune()) |>
+  step_downsample(call, under_ratio = 2) |> 
+  step_corr(all_numeric_predictors(), threshold = 0.9, method = "spearman") 
+```
+
+***Boosting***
+```{r, echo=TRUE}
+boost_rec <- recipe(call ~ ., data = call_train) %>%
+  step_center(all_numeric_predictors()) %>%
+  step_scale(all_numeric_predictors()) %>%
+  step_smotenc(call, over_ratio = tune(), neighbors = tune()) %>%
+  step_dummy(all_nominal_predictors())
+```
+
+
